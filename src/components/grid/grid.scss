@@ -152,7 +152,7 @@ ion-col {
 @include responsive-grid-break('[responsive-lg]', $grid-responsive-lg-break);
 
 
-// Resposive Column Classes
+// Responsive Column Classes
 // Add an attribute of X-width-10 to a col
 // will trigger the width to be 10% for that breakpoint
 // Ex: <ion-col lg-width-25 sm-width-50 width-100></ion-col>
