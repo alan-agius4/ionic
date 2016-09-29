@@ -321,11 +321,11 @@ export class Item extends Ion {
    */
   @Input()
   set mode(val: string) {
-    this._setMode('item', val);
+    this._setMode(val);
   }
 
   constructor(form: Form, config: Config, elementRef: ElementRef, renderer: Renderer) {
-    super(config, elementRef, renderer);
+    super(config, elementRef, renderer, 'item');
 
     this.mode = config.get('mode');
     this.id = form.nextId().toString();

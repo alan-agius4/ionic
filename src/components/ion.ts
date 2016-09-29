@@ -26,10 +26,16 @@ export class Ion {
   /** @private */
   _mode: string;
 
-  constructor(config: Config, elementRef: ElementRef, renderer: Renderer) {
+  /** @private */
+  _componentName: string;
+
+  constructor(config: Config, elementRef: ElementRef, renderer: Renderer, componentName: string) {
     this._config = config;
     this._elementRef = elementRef;
     this._renderer = renderer;
+    this._componentName = componentName;
+
+    this._setComponentName();
   }
 
   /** @private */
@@ -48,30 +54,35 @@ export class Ion {
   }
 
   /** @private */
-  _setColor(componentName: string, newColor: string) {
+  _setColor(newColor: string) {
     if (this._color) {
-      this.setElementClass(`${componentName}-${this._mode}-${this._color}`, false);
+      this.setElementClass(`${this._componentName}-${this._mode}-${this._color}`, false);
     }
     if (newColor) {
-      this.setElementClass(`${componentName}-${this._mode}-${newColor}`, true);
+      this.setElementClass(`${this._componentName}-${this._mode}-${newColor}`, true);
       this._color = newColor;
     }
   }
 
   /** @private */
-  _setMode(componentName: string, newMode: string) {
+  _setMode(newMode: string) {
     if (this._mode) {
-      this.setElementClass(`${componentName}-${this._mode}`, false);
+      this.setElementClass(`${this._componentName}-${this._mode}`, false);
     }
     if (newMode) {
-      this.setElementClass(`${componentName}-${newMode}`, true);
+      this.setElementClass(`${this._componentName}-${newMode}`, true);
 
       // Remove the color class associated with the previous mode,
       // change the mode, then add the new color class
-      this._setColor(componentName, null);
+      this._setColor(null);
       this._mode = newMode;
-      this._setColor(componentName, this._color);
+      this._setColor(this._color);
     }
+  }
+
+    /** @private */
+  _setComponentName() {
+     this.setElementClass(this._componentName, true);
   }
 
   /** @private */
