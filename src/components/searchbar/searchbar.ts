@@ -1,8 +1,8 @@
-import { Component, Directive, ElementRef, EventEmitter, HostBinding, Input, Optional, Output, ViewChild, ViewEncapsulation } from '@angular/core';
-import { NgControl, NgModel }  from '@angular/forms';
+import { Component, ElementRef, EventEmitter, HostBinding, Input, Optional, Output, Renderer, ViewChild, ViewEncapsulation } from '@angular/core';
+import { NgControl }  from '@angular/forms';
 
 import { Config } from '../../config/config';
-import { Icon } from '../icon/icon';
+import { Ion } from '../ion';
 import { isPresent } from '../../util/util';
 import { Debouncer } from '../../util/debouncer';
 
@@ -23,22 +23,21 @@ import { Debouncer } from '../../util/debouncer';
  * </ion-searchbar>
  * ```
  *
- * @demo /docs/v2/demos/searchbar/
+ * @demo /docs/v2/demos/src/searchbar/
  * @see {@link /docs/v2/components#searchbar Searchbar Component Docs}
  */
 @Component({
   selector: 'ion-searchbar',
   template:
     '<div class="searchbar-input-container">' +
-      '<button (click)="cancelSearchbar($event)" (mousedown)="cancelSearchbar($event)" clear dark class="searchbar-md-cancel">' +
+      '<button ion-button (click)="cancelSearchbar($event)" (mousedown)="cancelSearchbar($event)" clear color="dark" class="searchbar-md-cancel">' +
         '<ion-icon name="arrow-back"></ion-icon>' +
       '</button>' +
       '<div #searchbarIcon class="searchbar-search-icon"></div>' +
       '<input #searchbarInput [(ngModel)]="_value" [attr.placeholder]="placeholder" (input)="inputChanged($event)" (blur)="inputBlurred($event)" (focus)="inputFocused($event)" class="searchbar-input">' +
-      '<button clear class="searchbar-clear-icon" (click)="clearInput($event)" (mousedown)="clearInput($event)"></button>' +
+      '<button ion-button clear class="searchbar-clear-icon" (click)="clearInput($event)" (mousedown)="clearInput($event)"></button>' +
     '</div>' +
-    '<button #cancelButton [tabindex]="_isActive ? 1 : -1" clear (click)="cancelSearchbar($event)" (mousedown)="cancelSearchbar($event)" class="searchbar-ios-cancel">{{cancelButtonText}}</button>',
-  directives: [Icon, NgModel],
+    '<button ion-button #cancelButton [tabindex]="_isActive ? 1 : -1" clear (click)="cancelSearchbar($event)" (mousedown)="cancelSearchbar($event)" class="searchbar-ios-cancel">{{cancelButtonText}}</button>',
   host: {
     '[class.searchbar-has-value]': '_value',
     '[class.searchbar-active]': '_isActive',
@@ -47,12 +46,28 @@ import { Debouncer } from '../../util/debouncer';
   },
   encapsulation: ViewEncapsulation.None
 })
-export class Searchbar {
-  private _value: string|number = '';
-  private _shouldBlur: boolean = true;
-  private _isActive: boolean = false;
-  private _searchbarInput: ElementRef;
-  private _debouncer: Debouncer = new Debouncer(250);
+export class Searchbar extends Ion {
+  _value: string|number = '';
+  _shouldBlur: boolean = true;
+  _isActive: boolean = false;
+  _searchbarInput: ElementRef;
+  _debouncer: Debouncer = new Debouncer(250);
+
+  /**
+   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   */
+  @Input()
+  set color(val: string) {
+    this._setColor('searchbar', val);
+  }
+
+  /**
+   * @input {string} The mode to apply to this component.
+   */
+  @Input()
+  set mode(val: string) {
+    this._setMode('searchbar', val);
+  }
 
   /**
    * @input {string} Set the the cancel button text. Default: `"Cancel"`.
@@ -131,10 +146,15 @@ export class Searchbar {
   @HostBinding('class.searchbar-has-focus') _sbHasFocus: boolean;
 
   constructor(
-    private _elementRef: ElementRef,
-    private _config: Config,
+    config: Config,
+    elementRef: ElementRef,
+    renderer: Renderer,
     @Optional() ngControl: NgControl
   ) {
+    super(config, elementRef, renderer);
+
+    this.mode = config.get('mode');
+
     // If the user passed a ngControl we need to set the valueAccessor
     if (ngControl) {
       ngControl.valueAccessor = this;
@@ -145,7 +165,7 @@ export class Searchbar {
    * @private
    */
   @ViewChild('searchbarInput')
-  private set searchbarInput(searchbarInput: ElementRef) {
+  set searchbarInput(searchbarInput: ElementRef) {
     this._searchbarInput = searchbarInput;
 
     let inputEle = searchbarInput.nativeElement;
@@ -195,9 +215,9 @@ export class Searchbar {
 
   /**
    * @private
-   * After View Initialization position the elements
+   * After View Checked position the elements
    */
-  ngAfterViewInit() {
+  ngAfterViewChecked() {
     this.positionElements();
   }
 

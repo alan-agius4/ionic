@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, Input, ViewEncapsulation } from '@angular/core';
-import { NgFor, NgStyle } from '@angular/common';
+import { ChangeDetectionStrategy, Component, ElementRef, Input, Renderer, ViewEncapsulation } from '@angular/core';
 
 import { Config } from '../../config/config';
+import { Ion } from '../ion';
 
 /**
  * @name Spinner
@@ -98,29 +98,37 @@ import { Config } from '../../config/config';
  */
 @Component({
   selector: 'ion-spinner',
-  template: `
-    <svg viewBox="0 0 64 64" *ngFor="let i of _c" [ngStyle]="i.style">
-     <circle [attr.r]="i.r" transform="translate(32,32)"></circle>
-    </svg>
-    <svg viewBox="0 0 64 64" *ngFor="let i of _l" [ngStyle]="i.style">
-     <line [attr.y1]="i.y1" [attr.y2]="i.y2" transform="translate(32,32)"></line>
-    </svg>
-  `,
-  directives: [NgFor, NgStyle],
+  template:
+    '<svg viewBox="0 0 64 64" *ngFor="let i of _c" [ngStyle]="i.style">' +
+      '<circle [attr.r]="i.r" transform="translate(32,32)"></circle>' +
+    '</svg>' +
+    '<svg viewBox="0 0 64 64" *ngFor="let i of _l" [ngStyle]="i.style">' +
+      '<line [attr.y1]="i.y1" [attr.y2]="i.y2" transform="translate(32,32)"></line>' +
+    '</svg>',
   host: {
-    '[class]': '_applied',
     '[class.spinner-paused]': 'paused'
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
 })
-export class Spinner {
-  private _c: any[];
-  private _l: any[];
-  private _name: string;
-  private _dur: number = null;
-  private _init: boolean;
-  private _applied: string;
+export class Spinner extends Ion {
+  _c: any[];
+  _l: any[];
+  _name: string;
+  _dur: number = null;
+  _init: boolean;
+  _applied: string;
+
+  /**
+   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   */
+  @Input()
+  get color(): string {
+    return this._color;
+  }
+  set color(value: string) {
+    this._setColor('spinner', value);
+  }
 
   /**
    * @input {string} SVG spinner name.
@@ -153,7 +161,9 @@ export class Spinner {
    */
   @Input() paused: boolean = false;
 
-  constructor(private _config: Config) {}
+  constructor(config: Config, elementRef: ElementRef, renderer: Renderer) {
+    super(config, elementRef, renderer);
+  }
 
   /**
    * @private
@@ -188,6 +198,7 @@ export class Spinner {
           }
         }
 
+        this.setElementClass(this._applied, true);
       }
     }
   }

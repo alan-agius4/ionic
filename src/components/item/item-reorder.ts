@@ -1,7 +1,7 @@
 import { Component, Directive, ElementRef, EventEmitter, forwardRef, Input, NgZone, Renderer, Inject, Optional, Output } from '@angular/core';
 
 import { Content } from '../content/content';
-import { CSS } from '../../util/dom';
+import { CSS, zoneRafFrames } from '../../util/dom';
 import { Item } from './item';
 import { ItemReorderGesture } from '../item/item-reorder-gesture';
 import { isTrueProperty } from '../../util/util';
@@ -119,7 +119,7 @@ export interface ReorderIndexes {
  * }
  * ```
  *
- * @demo /docs/v2/demos/item-reorder/
+ * @demo /docs/v2/demos/src/item-reorder/
  * @see {@link /docs/v2/components#lists List Component Docs}
  * @see {@link ../../list/List List API Docs}
  * @see {@link ../Item Item API Docs}
@@ -128,13 +128,25 @@ export interface ReorderIndexes {
   selector: 'ion-list[reorder],ion-item-group[reorder]',
   host: {
     '[class.reorder-enabled]': '_enableReorder',
+    '[class.reorder-visible]': '_visibleReorder',
   }
 })
 export class ItemReorder {
-  private _enableReorder: boolean = false;
-  private _reorderGesture: ItemReorderGesture;
-  private _lastToIndex: number = -1;
-  private _element: HTMLElement;
+
+  /** @private */
+  _enableReorder: boolean = false;
+
+  /** @private */
+  _visibleReorder: boolean = false;
+
+  /** @private */
+  _reorderGesture: ItemReorderGesture;
+
+  /** @private */
+  _lastToIndex: number = -1;
+
+  /** @private */
+  _element: HTMLElement;
 
   /**
    * @output {object} The expression to evaluate when the item is reordered. Emits an object
@@ -166,15 +178,21 @@ export class ItemReorder {
     return this._enableReorder;
   }
   set reorder(val: boolean) {
-    this._enableReorder = isTrueProperty(val);
+    let enabled = isTrueProperty(val);
 
-    if (!this._enableReorder) {
-      this._reorderGesture && this._reorderGesture.destroy();
+    if (!enabled && this._reorderGesture) {
+      this._reorderGesture.destroy();
       this._reorderGesture = null;
 
-    } else if (!this._reorderGesture) {
+      this._visibleReorder = false;
+      setTimeout(() => this._enableReorder = false, 400);
+
+    } else if (enabled && !this._reorderGesture) {
       console.debug('enableReorderItems');
       this._reorderGesture = new ItemReorderGesture(this);
+
+      this._enableReorder = true;
+      zoneRafFrames(2, () => this._visibleReorder = true);
     }
   }
 
@@ -182,10 +200,9 @@ export class ItemReorder {
    * @private
    */
   reorderPrepare() {
-    let children = this._element.children;
-    let len = children.length;
-    for (let i = 0; i < len; i++) {
-      children[i]['$ionIndex'] = i;
+    let children: any = this._element.children;
+    for (let i = 0, ilen = children.length; i < ilen; i++) {
+      children[i].$ionIndex = i;
     }
   }
 
@@ -193,7 +210,7 @@ export class ItemReorder {
    * @private
    */
   reorderStart() {
-    this.setCssClass('reorder-list-active', true);
+    this.setElementClass('reorder-list-active', true);
   }
 
   /**
@@ -229,7 +246,7 @@ export class ItemReorder {
     let children = this._element.children;
     let len = children.length;
 
-    this.setCssClass('reorder-list-active', false);
+    this.setElementClass('reorder-list-active', false);
     let transform = CSS.transform;
     for (let i = 0; i < len; i++) {
       (<any>children[i]).style[transform] = '';
@@ -277,7 +294,7 @@ export class ItemReorder {
   /**
    * @private
    */
-  setCssClass(classname: string, add: boolean) {
+  setElementClass(classname: string, add: boolean) {
     this._rendered.setElementClass(this._element, classname, add);
   }
 
@@ -294,7 +311,7 @@ export class ItemReorder {
  */
 @Component({
   selector: 'ion-reorder',
-  template: `<ion-icon name="menu"></ion-icon>`
+  template: `<ion-icon name="reorder"></ion-icon>`
 })
 export class Reorder {
   constructor(
