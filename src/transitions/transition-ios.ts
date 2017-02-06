@@ -5,6 +5,7 @@ import { PageTransition } from './page-transition';
 const DURATION = 500;
 const EASING = 'cubic-bezier(0.36,0.66,0.04,1)';
 const OPACITY = 'opacity';
+const TRANSFORM = 'transform';
 const TRANSLATEX = 'translateX';
 const OFF_RIGHT = '99.5%';
 const OFF_LEFT = '-33%';
@@ -18,6 +19,7 @@ export class IOSTransition extends PageTransition {
   init() {
     super.init();
 
+    const plt = this.plt;
     const enteringView = this.enteringView;
     const leavingView = this.leavingView;
     const opts = this.opts;
@@ -34,7 +36,7 @@ export class IOSTransition extends PageTransition {
       const enteringPageEle: Element = enteringView.pageRef().nativeElement;
 
       // entering content
-      const enteringContent = new Animation(enteringView.contentRef());
+      const enteringContent = new Animation(plt, enteringView.contentRef());
       enteringContent.element(enteringPageEle.querySelectorAll('ion-header > *:not(ion-navbar),ion-footer > *'));
       this.add(enteringContent);
 
@@ -55,13 +57,13 @@ export class IOSTransition extends PageTransition {
         // entering page has a navbar
         const enteringNavbarEle = enteringPageEle.querySelector('ion-navbar');
 
-        const enteringNavBar = new Animation(enteringNavbarEle);
+        const enteringNavBar = new Animation(plt, enteringNavbarEle);
         this.add(enteringNavBar);
 
-        const enteringTitle = new Animation(enteringNavbarEle.querySelector('ion-title'));
-        const enteringNavbarItems = new Animation(enteringNavbarEle.querySelectorAll('ion-buttons,[menuToggle]'));
-        const enteringNavbarBg = new Animation(enteringNavbarEle.querySelector('.toolbar-background'));
-        const enteringBackButton = new Animation(enteringNavbarEle.querySelector('.back-button'));
+        const enteringTitle = new Animation(plt, enteringNavbarEle.querySelector('ion-title'));
+        const enteringNavbarItems = new Animation(plt, enteringNavbarEle.querySelectorAll('ion-buttons,[menuToggle]'));
+        const enteringNavbarBg = new Animation(plt, enteringNavbarEle.querySelector('.toolbar-background'));
+        const enteringBackButton = new Animation(plt, enteringNavbarEle.querySelector('.back-button'));
         enteringNavBar
           .add(enteringTitle)
           .add(enteringNavbarItems)
@@ -87,21 +89,9 @@ export class IOSTransition extends PageTransition {
           // entering navbar, forward direction
           enteringTitle.fromTo(TRANSLATEX, OFF_RIGHT, CENTER, true);
 
-          if (leavingHasNavbar) {
-            // entering navbar, forward direction, and there's a leaving navbar
-            // should just fade in, no sliding
-            enteringNavbarBg
-              .beforeClearStyles([TRANSLATEX])
-              .fromTo(OPACITY, 0.01, 1, true);
-
-          } else {
-            // entering navbar, forward direction, and there's no leaving navbar
-            // should just slide in, no fading in
-            enteringNavbarBg
-              .beforeClearStyles([OPACITY])
-              .fromTo(TRANSLATEX, OFF_RIGHT, CENTER, true);
-          }
-
+          enteringNavbarBg
+            .beforeClearStyles([OPACITY])
+            .fromTo(TRANSLATEX, OFF_RIGHT, CENTER, true);
 
           if (enteringView.enableBack()) {
             // forward direction, entering page has a back button
@@ -109,7 +99,7 @@ export class IOSTransition extends PageTransition {
               .beforeAddClass(SHOW_BACK_BTN_CSS)
               .fromTo(OPACITY, 0.01, 1, true);
 
-            const enteringBackBtnText = new Animation(enteringNavbarEle.querySelector('.back-button-text'));
+            const enteringBackBtnText = new Animation(plt, enteringNavbarEle.querySelector('.back-button-text'));
             enteringBackBtnText.fromTo(TRANSLATEX, '100px', '0px');
             enteringNavBar.add(enteringBackBtnText);
 
@@ -125,7 +115,7 @@ export class IOSTransition extends PageTransition {
       // leaving content
       const leavingPageEle: Element = leavingView.pageRef().nativeElement;
 
-      const leavingContent = new Animation(leavingView.contentRef());
+      const leavingContent = new Animation(plt, leavingView.contentRef());
       leavingContent.element(leavingPageEle.querySelectorAll('ion-header > *:not(ion-navbar),ion-footer > *'));
       this.add(leavingContent);
 
@@ -139,18 +129,19 @@ export class IOSTransition extends PageTransition {
         // leaving content, forward direction
         leavingContent
           .fromTo(TRANSLATEX, CENTER, OFF_LEFT)
-          .fromTo(OPACITY, 1, OFF_OPACITY);
+          .fromTo(OPACITY, 1, OFF_OPACITY)
+          .afterClearStyles([TRANSFORM, OPACITY]);
       }
 
       if (leavingHasNavbar) {
         // leaving page has a navbar
         const leavingNavbarEle: Element = leavingPageEle.querySelector('ion-navbar');
 
-        const leavingNavBar = new Animation(leavingNavbarEle);
-        const leavingTitle = new Animation(leavingNavbarEle.querySelector('ion-title'));
-        const leavingNavbarItems = new Animation(leavingNavbarEle.querySelectorAll('ion-buttons,[menuToggle]'));
-        const leavingNavbarBg = new Animation(leavingNavbarEle.querySelector('.toolbar-background'));
-        const leavingBackButton = new Animation(leavingNavbarEle.querySelector('.back-button'));
+        const leavingNavBar = new Animation(plt, leavingNavbarEle);
+        const leavingTitle = new Animation(plt, leavingNavbarEle.querySelector('ion-title'));
+        const leavingNavbarItems = new Animation(plt, leavingNavbarEle.querySelectorAll('ion-buttons,[menuToggle]'));
+        const leavingNavbarBg = new Animation(plt, leavingNavbarEle.querySelector('.toolbar-background'));
+        const leavingBackButton = new Animation(plt, leavingNavbarEle.querySelector('.back-button'));
 
         leavingNavBar
           .add(leavingTitle)
@@ -168,28 +159,25 @@ export class IOSTransition extends PageTransition {
           // leaving navbar, back direction
           leavingTitle.fromTo(TRANSLATEX, CENTER, '100%');
 
-          if (enteringHasNavbar) {
-            // leaving navbar, back direction, and there's an entering navbar
-            // should just fade out, no sliding
-            leavingNavbarBg
-              .beforeClearStyles([TRANSLATEX])
-              .fromTo('opacity', 0.99, 0);
+          // leaving navbar, back direction, and there's no entering navbar
+          // should just slide out, no fading out
+          leavingNavbarBg
+            .beforeClearStyles([OPACITY])
+            .fromTo(TRANSLATEX, CENTER, '100%');
 
-          } else {
-            // leaving navbar, back direction, and there's no entering navbar
-            // should just slide out, no fading out
-            leavingNavbarBg
-              .beforeClearStyles([OPACITY])
-              .fromTo(TRANSLATEX, CENTER, '100%');
-          }
-
-          let leavingBackBtnText = new Animation(leavingNavbarEle.querySelector('.back-button-text'));
+          let leavingBackBtnText = new Animation(plt, leavingNavbarEle.querySelector('.back-button-text'));
           leavingBackBtnText.fromTo(TRANSLATEX, CENTER, (300) + 'px');
           leavingNavBar.add(leavingBackBtnText);
 
         } else {
           // leaving navbar, forward direction
-          leavingTitle.fromTo(TRANSLATEX, CENTER, OFF_LEFT);
+          leavingTitle
+            .fromTo(TRANSLATEX, CENTER, OFF_LEFT)
+            .afterClearStyles([TRANSFORM]);
+
+          leavingBackButton.afterClearStyles([OPACITY]);
+          leavingTitle.afterClearStyles([OPACITY]);
+          leavingNavbarItems.afterClearStyles([OPACITY]);
         }
       }
 

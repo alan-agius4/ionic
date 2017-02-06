@@ -7,7 +7,7 @@ import { App } from '../app/app';
 import { Config } from '../../config/config';
 import { Form } from '../../util/form';
 import { Ion } from '../ion';
-import { isBlank, isCheckedProperty, isTrueProperty, merge } from '../../util/util';
+import { isBlank, isCheckedProperty, isTrueProperty, deepCopy } from '../../util/util';
 import { Item } from '../item/item';
 import { NavController } from '../../navigation/nav-controller';
 import { Option } from '../option/option';
@@ -191,20 +191,22 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
   @Input() selectedText: string = '';
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('select', val);
+    this._setMode(val);
   }
 
   /**
-   * @output {any} Any expression you want to evaluate when the selection has changed.
+   * @output {any} Emitted when the selection has changed.
    */
   @Output() ionChange: EventEmitter<any> = new EventEmitter();
 
   /**
-   * @output {any} Any expression you want to evaluate when the selection was cancelled.
+   * @output {any} Emitted when the selection was cancelled.
    */
   @Output() ionCancel: EventEmitter<any> = new EventEmitter();
 
@@ -217,9 +219,7 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
     @Optional() public _item: Item,
     @Optional() private _nav: NavController
   ) {
-    super(config, elementRef, renderer);
-
-    this.mode = config.get('mode');
+    super(config, elementRef, renderer, 'select');
 
     _form.register(this);
 
@@ -259,7 +259,7 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
     console.debug('select, open alert');
 
     // the user may have assigned some options specifically for the alert
-    let selectOptions = merge({}, this.selectOptions);
+    const selectOptions = deepCopy(this.selectOptions);
 
     // make sure their buttons array is removed from the options
     // and we create a new array for the alert's two buttons
@@ -296,6 +296,7 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
           handler: () => {
             this.onChange(input.value);
             this.ionChange.emit(input.value);
+            input.ionSelect.emit(input.value);
           }
         };
       }));
@@ -319,7 +320,14 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
           label: input.text,
           value: input.value,
           checked: input.selected,
-          disabled: input.disabled
+          disabled: input.disabled,
+          handler: (selectedOption: any) => {
+            // Only emit the select event if it is being checked
+            // For multi selects this won't emit when unchecking
+            if (selectedOption.checked) {
+              input.ionSelect.emit(input.value);
+            }
+          }
         };
       });
 
@@ -360,7 +368,7 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
 
 
   /**
-   * @input {boolean} Whether or not the select component can accept multiple values. Default: `false`.
+   * @input {boolean} If true, the element can accept multiple values.
    */
   @Input()
   get multiple(): any {
@@ -418,14 +426,14 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
   }
 
   /**
-   * @input {boolean} Whether or not the select component is disabled. Default `false`.
+   * @input {boolean} If true, the user cannot interact with this element.
    */
   @Input()
-  get disabled() {
+  get disabled(): boolean {
     return this._disabled;
   }
 
-  set disabled(val) {
+  set disabled(val: boolean) {
     this._disabled = isTrueProperty(val);
     this._item && this._item.setElementClass('item-select-disabled', this._disabled);
   }
@@ -480,6 +488,13 @@ export class Select extends Ion implements AfterContentInit, ControlValueAccesso
    * @private
    */
   onTouched() { }
+
+  /**
+   * @private
+   */
+  setDisabledState(isDisabled: boolean) {
+    this.disabled = isDisabled;
+  }
 
   /**
    * @private

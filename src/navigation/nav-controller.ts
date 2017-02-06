@@ -10,7 +10,7 @@ import { ViewController } from './view-controller';
  * @description
  *
  * NavController is the base class for navigation controller components like
- * [`Nav`](../Nav/) and [`Tab`](../../tabs/Tab/). You use navigation controllers
+ * [`Nav`](../../components/nav/Nav/) and [`Tab`](../../components/tabs/Tab/). You use navigation controllers
  * to navigate to [pages](#view-creation) in your app. At a basic level, a
  * navigation controller is an array of pages representing a particular history
  * (of a Tab for example). This array can be manipulated to navigate throughout
@@ -18,11 +18,11 @@ import { ViewController } from './view-controller';
  * arbitrary locations in history.
  *
  * The current page is the last one in the array, or the top of the stack if we
- * think of it that way.  [Pushing](#push) a new page onto the top of the
+ * think of it that way. [Pushing](#push) a new page onto the top of the
  * navigation stack causes the new page to be animated in, while [popping](#pop)
  * the current page will navigate to the previous page in the stack.
  *
- * Unless you are using a directive like [NavPush](../NavPush/), or need a
+ * Unless you are using a directive like [NavPush](../../components/nav/NavPush/), or need a
  * specific NavController, most times you will inject and use a reference to the
  * nearest NavController to manipulate the navigation stack.
  *
@@ -33,7 +33,6 @@ import { ViewController } from './view-controller';
  *
  * ```typescript
  * import { Component } from `@angular/core`;
- * import { ionicBootstrap } from 'ionic-angular';
  * import { StartPage } from './start-page';
  *
  * @Component(
@@ -41,13 +40,12 @@ import { ViewController } from './view-controller';
  * })
  * class MyApp {
  *   // set the rootPage to the first page we want displayed
- *   private rootPage: any = StartPage;
+ *   public rootPage: any = StartPage;
  *
  *   constructor(){
  *   }
  * }
  *
- * ionicBootstrap(MyApp);
  * ```
  *
  * ### Injecting NavController
@@ -57,7 +55,7 @@ import { ViewController } from './view-controller';
  * Behind the scenes, when Ionic instantiates a new NavController, it creates an
  * injector with NavController bound to that instance (usually either a Nav or
  * Tab) and adds the injector to its own providers.  For more information on
- * providers and dependency injection, see [Providers and DI]().
+ * providers and dependency injection, see [Dependency Injection](https://angular.io/docs/ts/latest/guide/dependency-injection.html).
  *
  * Instead, you can inject NavController and know that it is the correct
  * navigation controller for most situations (for more advanced situations, see
@@ -85,24 +83,56 @@ import { ViewController } from './view-controller';
  *
  * ```typescript
  *
- * import { App, ViewChild } from '@angular/core';
+ * import { Component, ViewChild } from '@angular/core';
  * import { NavController } from 'ionic-angular';
  *
- * @App({
+ * @Component({
  *    template: '<ion-nav #myNav [root]="rootPage"></ion-nav>'
  * })
  * export class MyApp {
  *    @ViewChild('myNav') nav: NavController
- *    private rootPage = TabsPage;
+ *    public rootPage = TabsPage;
  *
  *    // Wait for the components in MyApp's template to be initialized
- *    // In this case, we are waiting for the Nav with id="my-nav"
- *    ngAfterViewInit() {
+ *    // In this case, we are waiting for the Nav with reference variable of "#myNav"
+ *    ngOnInit() {
  *       // Let's navigate from TabsPage to Page1
  *       this.nav.push(Page1);
  *    }
  * }
  * ```
+ *
+ * ### Navigating from an Overlay Component
+ * What if you wanted to navigate from an overlay component (popover, modal, alert, etc)?
+ * In this example, we've displayed a popover in our app. From the popover, we'll get a
+ * reference of the root `NavController` in our app, using the `getRootNav()` method.
+ *
+ *
+ * ```typescript
+ * import { Component } from '@angular/core';
+ * import { App, ViewController } from 'ionic-angular';
+ *
+ * @Component({
+ *     template: `
+ *     <ion-content>
+ *       <h1>My PopoverPage</h1>
+ *       <button ion-button (click)="pushPage()">Call pushPage</button>
+ *      </ion-content>
+ *     `
+ *   })
+ *   class PopoverPage {
+ *     constructor(
+ *       public viewCtrl: ViewController
+ *       public appCtrl: App
+ *     ) {}
+ *
+ *     pushPage() {
+ *       this.viewCtrl.dismiss();
+ *       this.appCtrl.getRootNav().push(SecondPage);
+ *     }
+ *   }
+ *```
+ *
  *
  * ## View creation
  * Views are created when they are added to the navigation stack.  For methods
@@ -195,7 +225,7 @@ import { ViewController } from './view-controller';
  *   <ion-content>I'm the other page!</ion-content>`
  * })
  * class OtherPage {
- *    constructor(private navCtrl: NavController ){
+ *    constructor(public navCtrl: NavController ){
  *    }
  *
  *    popView(){
@@ -224,42 +254,80 @@ import { ViewController } from './view-controller';
  * }
  * ```
  *
- *  | Page Event          | Description                                                                                                                                                                                                                                                                        |
- *  |---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
- *  | `ionViewDidLoad`       | Runs when the page has loaded. This event only happens once per page being created. If a page leaves but is cached, then this event will not fire again on a subsequent viewing. The `ionViewDidLoad` event is good place to put your setup code for the page. |
- *  | `ionViewWillEnter`  | Runs when the page is about to enter and become the active page.                                                                                                                                                                                                                   |
- *  | `ionViewDidEnter`   | Runs when the page has fully entered and is now the active page. This event will fire, whether it was the first load or a cached page.                                                                                                                                             |
- *  | `ionViewWillLeave`  | Runs when the page is about to leave and no longer be the active page.                                                                                                                                                                                                             |
- *  | `ionViewDidLeave`   | Runs when the page has finished leaving and is no longer the active page.                                                                                                                                                                                                          |
- *  | `ionViewWillUnload` | Runs when the page is about to be destroyed and have its elements removed.
+ *  | Page Event          | Returns                     | Description                                                                                                                                                                                                                                                    |
+ *  |---------------------|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+ *  | `ionViewDidLoad`    | void                        | Runs when the page has loaded. This event only happens once per page being created. If a page leaves but is cached, then this event will not fire again on a subsequent viewing. The `ionViewDidLoad` event is good place to put your setup code for the page. |
+ *  | `ionViewWillEnter`  | void                        | Runs when the page is about to enter and become the active page.                                                                                                                                                                                               |
+ *  | `ionViewDidEnter`   | void                        | Runs when the page has fully entered and is now the active page. This event will fire, whether it was the first load or a cached page.                                                                                                                         |
+ *  | `ionViewWillLeave`  | void                        | Runs when the page is about to leave and no longer be the active page.                                                                                                                                                                                         |
+ *  | `ionViewDidLeave`   | void                        | Runs when the page has finished leaving and is no longer the active page.                                                                                                                                                                                      |
+ *  | `ionViewWillUnload` | void                        | Runs when the page is about to be destroyed and have its elements removed.                                                                                                                                                                                     |
+ *  | `ionViewCanEnter`   | boolean/Promise&lt;void&gt; | Runs before the view can enter. This can be used as a sort of "guard" in authenticated views where you need to check permissions before the view can enter                                                                                                     |
+ *  | `ionViewCanLeave`   | boolean/Promise&lt;void&gt; | Runs before the view can leave. This can be used as a sort of "guard" in authenticated views where you need to check permissions before the view can leave                                                                                                     |
  *
  *
- * ## Asynchronous Nav Transitions
+ * ## Nav Guards
  *
- * Navigation transitions are asynchronous operations. When a transition is started,
- * the `push` or `pop` method will return immediately, before the transition is complete.
+ * In some cases, a developer should be able to control views leaving and entering. To allow for this, NavController has the `ionViewCanEnter` and `ionViewCanLeave` methods.
+ * Similar to Angular 2 route guards, but are more integrated with NavController. For example, if you wanted to prevent a user from leaving a view:
  *
- * Generally, the developer does not need to be concerned about this. In the event
- * multiple transitions need to be synchronized or transition timing is critical,
- * the best practice is to chain the transitions together using the return value
- * from the `push` and `pop` methods.
+ * ```ts
+ * export class MyClass{
+ *  constructor(
+ *    public navCtrl: NavController
+ *   ){}
  *
- * The `push` and `pop` methods return a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
- * Promises are a way to represent and chain together multiple asynchronous
- * operations in order. Navigation actions can be chained together very easily using promises.
+ *   pushPage(){
+ *     this.navCtrl.push(DetailPage)
+ *      .catch(()=> console.log('should I stay or should I go now'))
+ *   }
  *
- * ```typescript
- * let navTransitionPromise = this.navCtrl.push(Page2);
- * navTransitionPromise.then(() => {
- *   // the transition has completed, so I can push another page now
- *   return this.navCtrl.push(Page3);
- * }).then(() => {
- *   // the second transition has completed, so I can push yet another page
-    return this.navCtrl.push(Page4);
- * }).then(() => {
- *   console.log('The transitions are complete!');
- * })
+ *   ionViewCanLeave(): boolean{
+ *    // here we can either return true or false
+ *    // depending on if we want to leave this view
+ *    if(isValid(randomValue)){
+ *       return true;
+ *     } else {
+ *       return false;
+ *     }
+ *   }
+ * }
  * ```
+ *
+ * We need to make sure that or `navCtrl.push` has a catch in order to catch the and handle the error.
+ * If you need to prevent a view from entering, you can do the same thing
+ *
+ * ```ts
+ * export class MyClass{
+ *  constructor(
+ *    public navCtrl: NavController
+ *   ){}
+ *
+ *   pushPage(){
+ *     this.navCtrl.push(DetailPage)
+ *      .catch(()=> console.log('should I stay or should I go now'))
+ *   }
+ *
+ * }
+ *
+ * export class DetailPage(){
+ *   constructor(
+ *     public navCtrl: NavController
+ *   ){}
+ *   ionViewCanEnter(): boolean{
+ *    // here we can either return true or false
+ *    // depending on if we want to leave this view
+ *    if(isValid(randomValue)){
+ *       return true;
+ *     } else {
+ *       return false;
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Similar to `ionViewCanLeave` we still need a catch on the original `navCtrl.push` in order to handle it properly.
+ * When handling the back button in the `ion-navbar`, the catch is already taken care of for you by the framework.
  *
  * ## NavOptions
  *
@@ -335,8 +403,8 @@ export abstract class NavController {
   config: Config;
 
   /**
-   * Push a new component onto the current navication stack. Pass any aditional information
-   * along as an object. This additional information is acessible through NavParams
+   * Push a new component onto the current navigation stack. Pass any aditional information
+   * along as an object. This additional information is accessible through NavParams
    *
    * @param {Page} page  The page component class you want to push on to the navigation stack
    * @param {object} [params={}] Any nav-params you want to pass along to the next view
@@ -405,6 +473,14 @@ export abstract class NavController {
   abstract popTo(page: any, params?: any, opts?: NavOptions, done?: Function): Promise<any>;
 
   /**
+   * @private
+   * Pop sequently all the pages in the stack.
+   *
+   * @returns {Promise} Returns a promise which is resolved when the transition has completed.
+   */
+  abstract popAll(): Promise<any[]>;
+
+  /**
    * Removes a page from the nav stack at the specified index.
    *
    * @param {number} [startIndex]  The starting index to remove pages from the stack. Default is the index of the last page.
@@ -413,6 +489,15 @@ export abstract class NavController {
    * @returns {Promise} Returns a promise which is resolved when the transition has completed.
    */
   abstract remove(startIndex: number, removeCount?: number, opts?: NavOptions, done?: Function): Promise<any>;
+
+  /**
+   * Removes the specified view controller from the nav stack.
+   *
+   * @param {ViewController} [viewController] The viewcontroller to remove.
+   * @param {object} [opts={}] Any options you want to use pass to transtion.
+   * @returns {Promise} Returns a promise which is resolved when the transition has completed.
+   */
+  abstract removeView(viewController: ViewController, opts?: NavOptions, done?: Function): Promise<any>;
 
   /**
    * Set the root for the current navigation stack.
@@ -429,7 +514,7 @@ export abstract class NavController {
    * by passing options to the navigation controller.You can also pass any
    * navigation params to the individual pages in the array.
    *
-   * @param {array<Page>} pages  An arry of page components and their params to load in the stack.
+   * @param {array} pages An array of objects, each with a `page` and optionally `params` property to load in the stack.
    * @param {object} [opts={}] Nav options to go with this transition.
    * @returns {Promise} Returns a promise which is resolved when the transition has completed.
    */
@@ -486,6 +571,13 @@ export abstract class NavController {
    */
   abstract length(): number;
 
+
+  /**
+   * Returns the current stack of views in this nav controller.
+   * @returns {Array<ViewController>} the stack of view controllers in this nav controller.
+   */
+  abstract getViews(): Array<ViewController>;
+
   /**
    * Returns the active child navigation.
    */
@@ -513,4 +605,8 @@ export abstract class NavController {
    */
   abstract canGoBack(): boolean;
 
+  /**
+   * @private
+   */
+  abstract registerChildNav(nav: any): void;
 }

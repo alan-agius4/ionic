@@ -2,9 +2,10 @@ import { Component, ContentChild, Input, ContentChildren, QueryList, ChangeDetec
 
 import { Config } from '../../config/config';
 import { Ion } from '../ion';
-
-import { UIEventManager } from '../../util/ui-event-manager';
 import { isTrueProperty } from '../../util/util';
+import { Platform } from '../../platform/platform';
+import { UIEventManager } from '../../gestures/ui-event-manager';
+
 
 /**
   * @name FabButton
@@ -32,7 +33,6 @@ import { isTrueProperty } from '../../util/util';
   * See [ion-fab] to learn more information about how to position the fab button.
   *
   * @property [mini] - Makes a fab button with a reduced size.
-  * @property [color] - Dynamically set which predefined color this button should use (e.g. primary, secondary, danger, etc).
   *
   * @usage
   *
@@ -63,22 +63,26 @@ import { isTrueProperty } from '../../util/util';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
 })
-export class FabButton extends Ion  {
+export class FabButton extends Ion {
 
   /**
-   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   * @input {string} The color to use from your Sass `$colors` map.
+   * Default options are: `"primary"`, `"secondary"`, `"danger"`, `"light"`, and `"dark"`.
+   * For more information, see [Theming your App](/docs/v2/theming/theming-your-app).
    */
   @Input()
   set color(val: string) {
-    this._setColor('fab', val);
+    this._setColor(val);
   }
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('fab', val);
+    this._setMode(val);
   }
 
   constructor(
@@ -86,9 +90,7 @@ export class FabButton extends Ion  {
     elementRef: ElementRef,
     renderer: Renderer,
   ) {
-    super(config, elementRef, renderer);
-    this.setElementClass('fab', true); // set role
-    this.mode = config.get('mode');
+    super(config, elementRef, renderer, 'fab');
   }
 
 
@@ -126,19 +128,28 @@ export class FabButton extends Ion  {
  */
 @Directive({
   selector: 'ion-fab-list',
-  host: {
-    '[class.fab-list-active]': '_visible'
-  }
 })
 export class FabList {
   _visible: boolean = false;
   _fabs: FabButton[] = [];
+  _mode: string;
+
+  constructor(
+    private _elementRef: ElementRef,
+    private _renderer: Renderer,
+    config: Config,
+    private _plt: Platform
+  ) {
+    this._mode = config.get('mode');
+  }
 
   @ContentChildren(FabButton)
   set _setbuttons(query: QueryList<FabButton>) {
-    let fabs = this._fabs = query.toArray();
+    const fabs = this._fabs = query.toArray();
+    const className = `fab-${this._mode}-in-list`;
     for (var fab of fabs) {
       fab.setElementClass('fab-in-list', true);
+      fab.setElementClass(className, true);
     }
   }
 
@@ -150,18 +161,26 @@ export class FabList {
     if (visible === this._visible) {
       return;
     }
+    this._visible = visible;
 
     let fabs = this._fabs;
     let i = 1;
     if (visible) {
       fabs.forEach(fab => {
-        setTimeout(() => fab.setElementClass('show', true), i * 30);
+        this._plt.timeout(() => fab.setElementClass('show', true), i * 30);
         i++;
       });
     } else {
       fabs.forEach(fab => fab.setElementClass('show', false));
     }
-    this._visible = visible;
+    this.setElementClass('fab-list-active', visible);
+  }
+
+  /**
+   * @internal
+   */
+  setElementClass(className: string, add: boolean) {
+    this._renderer.setElementClass(this._elementRef.nativeElement, className, add);
   }
 
 }
@@ -208,7 +227,7 @@ export class FabList {
   *
   * ```html
   * <ion-content>
-  *  <!-- this fab is placed at top right -->
+  *  <!-- this fab is placed at bottom right -->
   *  <ion-fab bottom right >
   *    <button ion-fab>Share</button>
   *    <ion-fab-list side="top">
@@ -256,7 +275,7 @@ export class FabContainer {
   /**
    * @private
    */
-  _events: UIEventManager = new UIEventManager();
+  _events: UIEventManager;
 
   /**
    * @private
@@ -273,19 +292,26 @@ export class FabContainer {
    */
   @ContentChildren(FabList) _fabLists: QueryList<FabList>;
 
-  constructor(private _elementRef: ElementRef) { }
-
-  /**
-   * @private
-   */
-  ngAfterContentInit() {
-    this._events.listen(this._mainButton.getNativeElement(), 'click', this.pointerUp.bind(this));
+  constructor(private _elementRef: ElementRef, plt: Platform) {
+    this._events = new UIEventManager(plt);
   }
 
   /**
    * @private
    */
-  pointerUp(ev: any) {
+  ngAfterContentInit() {
+    const mainButton = this._mainButton;
+    if (!mainButton || !mainButton.getNativeElement()) {
+      console.error('FAB container needs a main <button ion-fab>');
+      return;
+    }
+    this._events.listen(mainButton.getNativeElement(), 'click', this.clickHandler.bind(this), { zone: true });
+  }
+
+  /**
+   * @private
+   */
+  clickHandler(ev: any) {
     if (this.canActivateList(ev)) {
       this.toggleList();
     }
@@ -296,7 +322,7 @@ export class FabContainer {
    */
   canActivateList(ev: any): boolean {
     if (this._fabLists.length > 0 && this._mainButton && ev.target) {
-      let ele = ev.target.closest('ion-fab>button');
+      let ele = ev.target.closest('ion-fab>[ion-fab]');
       return (ele && ele === this._mainButton.getNativeElement());
     }
     return false;
@@ -317,7 +343,7 @@ export class FabContainer {
       return;
     }
     let lists = this._fabLists.toArray();
-    for (let list of lists) {
+    for (let list of lists) {
       list.setVisible(isActive);
     }
     this._mainButton.setActiveClose(isActive);
@@ -335,6 +361,6 @@ export class FabContainer {
    * @private
    */
   ngOnDestroy() {
-    this._events.unlistenAll();
+    this._events.destroy();
   }
 }

@@ -1,3 +1,5 @@
+import { OpaqueToken } from '@angular/core';
+
 /**
 * @ngdoc service
 * @name Config
@@ -5,9 +7,7 @@
 * @description
 * Config allows you to set the modes of your components
 */
-import { OpaqueToken } from '@angular/core';
 import { Platform } from '../platform/platform';
-import { QueryParams } from '../platform/query-params';
 import { isObject, isDefined, isFunction, isArray } from '../util/util';
 
 /**
@@ -18,16 +18,24 @@ import { isObject, isDefined, isFunction, isArray } from '../util/util';
  * You can set the tab placement, icon mode, animations, and more here.
  *
  * ```ts
- * import { ionicBootstrap } from 'ionic-angular';
+ * import { IonicApp, IonicModule } from 'ionic-angular';
  *
- * ionicBootstrap(AppRoot, customProviders, {
- *   backButtonText: 'Go Back',
- *   iconMode: 'ios',
- *   modalEnter: 'modal-slide-in',
- *   modalLeave: 'modal-slide-out',
- *   tabsPlacement: 'bottom',
- *   pageTransition: 'ios',
- * });
+ * @NgModule({
+ *   declarations: [ MyApp ],
+ *   imports: [
+ *     IonicModule.forRoot(MyApp, {
+ *       backButtonText: 'Go Back',
+ *       iconMode: 'ios',
+ *       modalEnter: 'modal-slide-in',
+ *       modalLeave: 'modal-slide-out',
+ *       tabsPlacement: 'bottom',
+ *       pageTransition: 'ios'
+ *     }, {}
+ *   )],
+ *   bootstrap: [IonicApp],
+ *   entryComponents: [ MyApp ],
+ *   providers: []
+ * })
  * ```
  *
  *
@@ -35,15 +43,22 @@ import { isObject, isDefined, isFunction, isArray } from '../util/util';
  * Below is an example where an app can override any setting we want based on a platform.
  *
  * ```ts
- * import { ionicBootstrap } from 'ionic-angular';
+ * import { IonicModule } from 'ionic-angular';
  *
- * ionicBootstrap(AppRoot, customProviders, {
- *   tabsPlacement: 'bottom',
- *   platforms: {
- *   ios: {
- *     tabsPlacement: 'top',
- *   }
- * });
+ * @NgModule({
+ *   ...
+ *   imports: [
+ *     IonicModule.forRoot(MyApp, {
+ *       tabsPlacement: 'bottom',
+ *       platforms: {
+ *         ios: {
+ *           tabsPlacement: 'top',
+ *         }
+ *       }
+ *     }, {}
+ *   )],
+ *   ...
+ * })
  * ```
  *
  * We could also configure these values at a component level. Take `tabsPlacement`,
@@ -88,20 +103,20 @@ import { isObject, isDefined, isFunction, isArray } from '../util/util';
  * | `backButtonText`         | `string`            | The text to display by the back button icon in the navbar.                                                                                       |
  * | `backButtonIcon`         | `string`            | The icon to use as the back button icon.                                                                                                         |
  * | `iconMode`               | `string`            | The mode to use for all icons throughout the application. Available options: `"ios"`, `"md"`                                                     |
+ * | `locationStrategy`       | `string`            | Set to 'path' to remove hashbangs when using Deeplinking.                                                                                        |
  * | `loadingEnter`           | `string`            | The name of the transition to use while a loading indicator is presented.                                                                        |
  * | `loadingLeave`           | `string`            | The name of the transition to use while a loading indicator is dismissed.                                                                        |
  * | `menuType`               | `string`            | Type of menu to display. Available options: `"overlay"`, `"reveal"`, `"push"`.                                                                   |
  * | `modalEnter`             | `string`            | The name of the transition to use while a modal is presented.                                                                                    |
  * | `modalLeave`             | `string`            | The name of the transition to use while a modal is dismiss.                                                                                      |
+ * | `mode`                   | `string`            | The mode to use throughout the application.                                                                                                      |
  * | `pageTransition`         | `string`            | The name of the transition to use while changing pages.                                                                                          |
- * | `pageTransitionDelay`    | `number`            | The delay in milliseconds before the transition starts while changing pages.                                                                     |
  * | `pickerEnter`            | `string`            | The name of the transition to use while a picker is presented.                                                                                   |
  * | `pickerLeave`            | `string`            | The name of the transition to use while a picker is dismissed.                                                                                   |
  * | `popoverEnter`           | `string`            | The name of the transition to use while a popover is presented.                                                                                  |
  * | `popoverLeave`           | `string`            | The name of the transition to use while a popover is dismissed.                                                                                  |
- * | `prodMode`               | `boolean`           | Disable development mode, which turns off assertions and other checks within the framework. One important assertion this disables verifies that a change detection pass does not result in additional changes to any bindings (also known as unidirectional data flow).
  * | `spinner`                | `string`            | The default spinner to use when a name is not defined.                                                                                           |
- * | `swipeBackEnabled`       | `boolean`           | Whether native iOS swipe to go back functionality is enabled.
+ * | `swipeBackEnabled`       | `boolean`           | Whether native iOS swipe to go back functionality is enabled.                                                                                    |
  * | `tabsHighlight`          | `boolean`           | Whether to show a highlight line under the tab when it is selected.                                                                              |
  * | `tabsLayout`             | `string`            | The layout to use for all tabs. Available options: `"icon-top"`, `"icon-left"`, `"icon-right"`, `"icon-bottom"`, `"icon-hide"`, `"title-hide"`.  |
  * | `tabsPlacement`          | `string`            | The position of the tabs relative to the content. Available options: `"top"`, `"bottom"`                                                         |
@@ -112,23 +127,21 @@ import { isObject, isDefined, isFunction, isArray } from '../util/util';
 **/
 export class Config {
   private _c: any = {};
-  private _s: any;
-  private _qp: QueryParams;
+  private _s: any = {};
   private _modes: any = {};
   private _trns: any = {};
 
   /**
    * @private
    */
-  platform: Platform;
+  plt: Platform;
 
   /**
    * @private
    */
-  init(config: any, queryParams: QueryParams, platform: Platform) {
+  init(config: any, plt: Platform) {
     this._s = config && isObject(config) && !isArray(config) ? config : {};
-    this._qp = queryParams;
-    this.platform = platform;
+    this.plt = plt;
   }
 
 
@@ -143,6 +156,7 @@ export class Config {
    *  defaults to `null`.
    */
   get(key: string, fallbackValue: any = null): any {
+    const platform = this.plt;
 
     if (!isDefined(this._c[key])) {
       if (!isDefined(key)) {
@@ -154,16 +168,16 @@ export class Config {
       // the user config's platforms, which already contains
       // settings from default platform configs
 
-      let userPlatformValue: any = undefined;
-      let userDefaultValue: any = this._s[key];
-      let userPlatformModeValue: any = undefined;
-      let userDefaultModeValue: any = undefined;
-      let platformValue: any = undefined;
-      let platformModeValue: any = undefined;
-      let configObj: any = null;
+      var userPlatformValue: any = undefined;
+      var userDefaultValue: any = this._s[key];
+      var userPlatformModeValue: any = undefined;
+      var userDefaultModeValue: any = undefined;
+      var platformValue: any = undefined;
+      var platformModeValue: any = undefined;
+      var configObj: any = null;
 
-      if (this.platform) {
-        const queryStringValue = this._qp.get('ionic' + key);
+      if (platform) {
+        var queryStringValue = platform.getQueryParam('ionic' + key);
         if (isDefined(queryStringValue)) {
           return this._c[key] = (queryStringValue === 'true' ? true : queryStringValue === 'false' ? false : queryStringValue);
         }
@@ -173,7 +187,7 @@ export class Config {
 
         // array of active platforms, which also knows the hierarchy,
         // with the last one the most important
-        const activePlatformKeys = this.platform.platforms();
+        var activePlatformKeys = platform.platforms();
 
         // loop through all of the active platforms we're on
         for (var i = 0, ilen = activePlatformKeys.length; i < ilen; i++) {
@@ -193,7 +207,7 @@ export class Config {
           }
 
           // get default platform's setting
-          configObj = this.platform.getPlatformConfig(activePlatformKeys[i]);
+          configObj = platform.getPlatformConfig(activePlatformKeys[i]);
           if (configObj && configObj.settings) {
 
             if (isDefined(configObj.settings[key])) {
@@ -233,12 +247,9 @@ export class Config {
     // or it was from the users platform configs
     // or it was from the default platform configs
     // in that order
-    let rtnVal: any;
-    if (isFunction(this._c[key])) {
-      rtnVal = this._c[key](this.platform);
-
-    } else {
-      rtnVal = this._c[key];
+    var rtnVal: any = this._c[key];
+    if (isFunction(rtnVal)) {
+      rtnVal = rtnVal(platform);
     }
 
     return (rtnVal !== null ? rtnVal : fallbackValue);
@@ -385,13 +396,19 @@ export class Config {
 /**
  * @private
  */
-export const ConfigToken = new OpaqueToken('USERCONFIG');
+export function setupConfig(userConfig: any, plt: Platform): Config {
+  const config = new Config();
+  config.init(userConfig, plt);
+
+  // add the config obj to the window
+  const win: any = plt.win();
+  win['Ionic'] = win['Ionic'] || {};
+  win['Ionic']['config'] = config;
+
+  return config;
+}
 
 /**
  * @private
  */
-export function setupConfig(userConfig: any, queryParams: QueryParams, platform: Platform): Config {
-  const config = new Config();
-  config.init(userConfig, queryParams, platform);
-  return config;
-}
+export const ConfigToken = new OpaqueToken('USERCONFIG');

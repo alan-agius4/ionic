@@ -43,15 +43,6 @@ export class Popover extends ViewController {
     return this._app.present(this, navOptions);
   }
 
-  /**
-   * @private
-   * DEPRECATED: Please inject PopoverController instead
-   */
-  static create(component: any, data = {}, opts: PopoverOptions = {}) {
-    // deprecated warning: added beta.11 2016-06-27
-    console.warn('Popover.create(..) has been deprecated. Please inject PopoverController instead');
-  }
-
 }
 
 
@@ -71,7 +62,7 @@ export class Popover extends ViewController {
  * below for all available options.
  *
  * ### Presenting
- * To present a popover, call the `present` method on a [PopoverController](../../nav/PopoverConroller) instance.
+ * To present a popover, call the `present` method on a PopoverController instance.
  * In order to position the popover relative to the element clicked, a click event
  * needs to be passed into the options of the the `present method. If the event
  * is not passed, the popover will be positioned in the center of the current
@@ -80,11 +71,12 @@ export class Popover extends ViewController {
  * ### Dismissing
  * To dismiss the popover after creation, call the `dismiss()` method on the
  * `Popover` instance. The popover can also be dismissed from within the popover's
- * view by calling the `dismiss()` method on the [ViewController](../../nav/ViewController).
- * The `onDidDismiss` function can be called to perform an action after the popover
- * is dismissed. The popover will dismiss when the backdrop is clicked, but this
- * can be disabled by setting `enableBackdropDismiss` to `false` in the popover
- * options.
+ * view by calling the `dismiss()` method on the [ViewController](../../navigation/ViewController).
+ * The `dismiss()` call accepts an optional parameter that will be passed to the callback described
+ * as follows. The `onDidDismiss(<func>)` function can be called to set up a callback action that will
+ * be performed after the popover is dismissed, receiving the parameter passed to `dismiss()`.
+ * The popover will dismiss when the backdrop is clicked by implicitly performing `dismiss(null)`,
+ * but this can be disabled by setting `enableBackdropDismiss` to `false` in the popover options.
  *
  * > Note that after the component is dismissed, it will not be usable anymore and
  * another one must be created. This can be avoided by wrapping the creation and
@@ -97,12 +89,14 @@ export class Popover extends ViewController {
  * which creates and presents the popover:
  *
  * ```html
- * <button ion-button (click)="presentPopover($event)">
+ * <button ion-button icon-only (click)="presentPopover($event)">
  *   <ion-icon name="more"></ion-icon>
  * </button>
  * ```
  *
  * ```ts
+ * import { PopoverController } from 'ionic-angular';
+ *
  * @Component({})
  * class MyPage {
  *   constructor(public popoverCtrl: PopoverController) {}

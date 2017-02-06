@@ -161,11 +161,6 @@ describe('button', () => {
     b.round = true;
     b._assignCss(true);
     expect(hasClass(b, 'button-round')).toEqual(true);
-
-    b = mockButton();
-    b.fab = true;
-    b._assignCss(true);
-    expect(hasClass(b, 'button-fab')).toEqual(true);
   });
 
   it('should read button display attributes', () => {
@@ -258,12 +253,12 @@ describe('button', () => {
 function mockButton(config?: Config, ionButton?: string) {
   config = config || mockConfig();
   ionButton = ionButton || '';
-  let b = new Button(null, ionButton, config, mockElementRef(), mockRenderer());
+  let b = new Button(ionButton, config, mockElementRef(), mockRenderer());
   b._init = true;
   b.mode = 'ios';
   return b;
 }
 
-function hasClass(button, className) {
+function hasClass(button: any, className: string) {
   return button._elementRef.nativeElement.classList.contains(className);
 }

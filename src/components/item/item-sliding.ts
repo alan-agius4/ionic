@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, ContentChildren, ContentChild, Directive, ElementRef, EventEmitter, Input, Optional, Output, QueryList, Renderer, ViewEncapsulation, NgZone } from '@angular/core';
 
-import { CSS, nativeRaf, nativeTimeout, clearNativeTimeout } from '../../util/dom';
+import { isPresent, swipeShouldReset, assert } from '../../util/util';
 import { Item } from './item';
-import { isPresent } from '../../util/util';
 import { List } from '../list/list';
+import { Platform } from '../../platform/platform';
+import { DomController } from '../../platform/dom-controller';
 
 const SWIPE_MARGIN = 30;
 const ELASTIC_FACTOR = 0.55;
@@ -41,13 +42,13 @@ export const enum ItemSideFlags {
 })
 export class ItemOptions {
   /**
-   * @input {string} the side the option button should be on. Defaults to right
+   * @input {string} The side the option button should be on. Defaults to `"right"`.
    * If you have multiple `ion-item-options`, a side must be provided for each.
    */
   @Input() side: string;
 
   /**
-   * @output {event} Expression to evaluate when the item has been fully swiped.
+   * @output {event} Emitted when the item has been fully swiped.
    */
   @Output() ionSwipe: EventEmitter<ItemSliding> = new EventEmitter<ItemSliding>();
 
@@ -102,7 +103,7 @@ export const enum SlidingState {
  *       <button ion-button (click)="favorite(item)">Favorite</button>
  *       <button ion-button color="danger" (click)="share(item)">Share</button>
  *     </ion-item-options>
-
+ *
  *     <ion-item-options side="right">
  *       <button ion-button (click)="unread(item)">Unread</button>
  *     </ion-item-options>
@@ -124,7 +125,7 @@ export const enum SlidingState {
  *     Archive
  *   </button>
  * </ion-item-options>
-
+ *
  * <ion-item-options side="left">
  *   <button ion-button (click)="archive(item)">
  *     <ion-icon name="archive"></ion-icon>
@@ -183,7 +184,7 @@ export class ItemSliding {
   private _optsWidthRightSide: number = 0;
   private _optsWidthLeftSide: number = 0;
   private _sides: ItemSideFlags;
-  private _timer: number = null;
+  private _tmr: number = null;
   private _leftOptions: ItemOptions;
   private _rightOptions: ItemOptions;
   private _optsDirty: boolean = true;
@@ -195,7 +196,7 @@ export class ItemSliding {
   @ContentChild(Item) item: Item;
 
   /**
-   * @output {event} Expression to evaluate when the sliding position changes.
+   * @output {event} Emitted when the sliding position changes.
    * It reports the relative position.
    *
    * ```ts
@@ -219,6 +220,8 @@ export class ItemSliding {
 
   constructor(
     @Optional() list: List,
+    private _plt: Platform,
+    private _dom: DomController,
     private _renderer: Renderer,
     private _elementRef: ElementRef,
     private _zone: NgZone) {
@@ -230,6 +233,10 @@ export class ItemSliding {
   @ContentChildren(ItemOptions)
   set _itemOptions(itemOptions: QueryList<ItemOptions>) {
     let sides = 0;
+
+    // Reset left and right options in case they were removed
+    this._leftOptions = this._rightOptions = null;
+
     for (var item of itemOptions.toArray()) {
       var side = item.getSides();
       if (side === ItemSideFlags.Left) {
@@ -268,16 +275,16 @@ export class ItemSliding {
    * @private
    */
   startSliding(startX: number) {
-    if (this._timer) {
-      clearNativeTimeout(this._timer);
-      this._timer = null;
+    if (this._tmr) {
+      this._plt.cancelTimeout(this._tmr);
+      this._tmr = null;
     }
     if (this._openAmount === 0) {
       this._optsDirty = true;
       this._setState(SlidingState.Enabled);
     }
     this._startX = startX + this._openAmount;
-    this.item.setElementStyle(CSS.transition, 'none');
+    this.item.setElementStyle(this._plt.Css.transition, 'none');
   }
 
   /**
@@ -290,11 +297,13 @@ export class ItemSliding {
     }
 
     let openAmount = (this._startX - x);
+
     switch (this._sides) {
       case ItemSideFlags.Right: openAmount = Math.max(0, openAmount); break;
       case ItemSideFlags.Left: openAmount = Math.min(0, openAmount); break;
       case ItemSideFlags.Both: break;
-      default: return;
+      case ItemSideFlags.None: return;
+      default: assert(false, 'invalid ItemSideFlags value'); break;
     }
 
     if (openAmount > this._optsWidthRightSide) {
@@ -307,6 +316,7 @@ export class ItemSliding {
     }
 
     this._setOpenAmount(openAmount, false);
+
     return openAmount;
   }
 
@@ -320,10 +330,10 @@ export class ItemSliding {
 
     // Check if the drag didn't clear the buttons mid-point
     // and we aren't moving fast enough to swipe open
-    let isCloseDirection = (this._openAmount > 0) === !(velocity < 0);
+    let isResetDirection = (this._openAmount > 0) === !(velocity < 0);
     let isMovingFast = Math.abs(velocity) > 0.3;
     let isOnCloseZone = Math.abs(this._openAmount) < Math.abs(restingPoint / 2);
-    if (shouldClose(isCloseDirection, isMovingFast, isOnCloseZone)) {
+    if (swipeShouldReset(isResetDirection, isMovingFast, isOnCloseZone)) {
       restingPoint = 0;
     }
 
@@ -347,32 +357,34 @@ export class ItemSliding {
    * @private
    */
   private calculateOptsWidth() {
-    nativeRaf(() => {
-      if (!this._optsDirty) {
-        return;
-      }
-      this._optsWidthRightSide = 0;
-      if (this._rightOptions) {
-        this._optsWidthRightSide = this._rightOptions.width();
-      }
+    if (!this._optsDirty) {
+      return;
+    }
+    this._optsWidthRightSide = 0;
+    if (this._rightOptions) {
+      this._optsWidthRightSide = this._rightOptions.width();
+      assert(this._optsWidthRightSide > 0, '_optsWidthRightSide should not be zero');
+    }
 
-      this._optsWidthLeftSide = 0;
-      if (this._leftOptions) {
-        this._optsWidthLeftSide = this._leftOptions.width();
-      }
-      this._optsDirty = false;
-    });
+    this._optsWidthLeftSide = 0;
+    if (this._leftOptions) {
+      this._optsWidthLeftSide = this._leftOptions.width();
+      assert(this._optsWidthLeftSide > 0, '_optsWidthLeftSide should not be zero');
+    }
+    this._optsDirty = false;
   }
 
   private _setOpenAmount(openAmount: number, isFinal: boolean) {
-    if (this._timer) {
-      clearNativeTimeout(this._timer);
-      this._timer = null;
+    const platform = this._plt;
+
+    if (this._tmr) {
+      platform.cancelTimeout(this._tmr);
+      this._tmr = null;
     }
     this._openAmount = openAmount;
 
     if (isFinal) {
-      this.item.setElementStyle(CSS.transition, '');
+      this.item.setElementStyle(platform.Css.transition, '');
 
     } else {
       if (openAmount > 0) {
@@ -391,16 +403,19 @@ export class ItemSliding {
       }
     }
     if (openAmount === 0) {
-      this._timer = nativeTimeout(() => {
+      this._tmr = platform.timeout(() => {
         this._setState(SlidingState.Disabled);
-        this._timer = null;
+        this._tmr = null;
       }, 600);
-      this.item.setElementStyle(CSS.transform, '');
+      this.item.setElementStyle(platform.Css.transform, '');
       return;
     }
 
-    this.item.setElementStyle(CSS.transform, `translate3d(${-openAmount}px,0,0)`);
-    this._zone.run(() => this.ionDrag.emit(this));
+    this.item.setElementStyle(platform.Css.transform, `translate3d(${-openAmount}px,0,0)`);
+    let ionDrag = this.ionDrag;
+    if (ionDrag.observers.length > 0) {
+      ionDrag.emit(this);
+    }
   }
 
   private _setState(state: SlidingState) {
@@ -460,23 +475,4 @@ export class ItemSliding {
   setElementClass(cssClass: string, shouldAdd: boolean) {
     this._renderer.setElementClass(this._elementRef.nativeElement, cssClass, shouldAdd);
   }
-}
-
-function shouldClose(isCloseDirection: boolean, isMovingFast: boolean, isOnCloseZone: boolean): boolean {
-  // The logic required to know when the sliding item should close (openAmount=0)
-  // depends on three booleans (isCloseDirection, isMovingFast, isOnCloseZone)
-  // and it ended up being too complicated to be written manually without errors
-  // so the truth table is attached below: (0=false, 1=true)
-  // isCloseDirection | isMovingFast | isOnCloseZone || shouldClose
-  //         0        |       0      |       0       ||    0
-  //         0        |       0      |       1       ||    1
-  //         0        |       1      |       0       ||    0
-  //         0        |       1      |       1       ||    0
-  //         1        |       0      |       0       ||    0
-  //         1        |       0      |       1       ||    1
-  //         1        |       1      |       0       ||    1
-  //         1        |       1      |       1       ||    1
-  // The resulting expression was generated by resolving the K-map (Karnaugh map):
-  let shouldClose = (!isMovingFast && isOnCloseZone) || (isCloseDirection && isMovingFast);
-  return shouldClose;
 }

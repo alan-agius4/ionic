@@ -1,7 +1,6 @@
 import { ElementRef, Renderer } from '@angular/core';
 
 import { Config } from '../config/config';
-import { getDimensions, clearDimensions } from '../util/dom';
 
 /**
  * Base class for all Ionic components. Exposes some common functionality
@@ -9,8 +8,6 @@ import { getDimensions, clearDimensions } from '../util/dom';
  * sending/receiving app-level events.
  */
 export class Ion {
-  private _ionId: string;
-
   /** @private */
   _config: Config;
 
@@ -26,10 +23,19 @@ export class Ion {
   /** @private */
   _mode: string;
 
-  constructor(config: Config, elementRef: ElementRef, renderer: Renderer) {
+  /** @private */
+  _componentName: string;
+
+  constructor(config: Config, elementRef: ElementRef, renderer: Renderer, componentName?: string) {
     this._config = config;
     this._elementRef = elementRef;
     this._renderer = renderer;
+    this._componentName = componentName;
+
+    if (componentName) {
+      this._setComponentName();
+      this._setMode(config.get('mode'));
+    }
   }
 
   /** @private */
@@ -48,30 +54,39 @@ export class Ion {
   }
 
   /** @private */
-  _setColor(componentName: string, newColor: string) {
+  _setColor(newColor: string, componentName?: string) {
+    if (componentName) {
+      // This is needed for the item-radio
+      this._componentName = componentName;
+    }
     if (this._color) {
-      this.setElementClass(`${componentName}-${this._mode}-${this._color}`, false);
+      this.setElementClass(`${this._componentName}-${this._mode}-${this._color}`, false);
     }
     if (newColor) {
-      this.setElementClass(`${componentName}-${this._mode}-${newColor}`, true);
+      this.setElementClass(`${this._componentName}-${this._mode}-${newColor}`, true);
       this._color = newColor;
     }
   }
 
   /** @private */
-  _setMode(componentName: string, newMode: string) {
+  _setMode(newMode: string) {
     if (this._mode) {
-      this.setElementClass(`${componentName}-${this._mode}`, false);
+      this.setElementClass(`${this._componentName}-${this._mode}`, false);
     }
     if (newMode) {
-      this.setElementClass(`${componentName}-${newMode}`, true);
+      this.setElementClass(`${this._componentName}-${newMode}`, true);
 
       // Remove the color class associated with the previous mode,
       // change the mode, then add the new color class
-      this._setColor(componentName, null);
+      this._setColor(null);
       this._mode = newMode;
-      this._setColor(componentName, this._color);
+      this._setColor(this._color);
     }
+  }
+
+  /** @private */
+  _setComponentName() {
+    this.setElementClass(this._componentName, true);
   }
 
   /** @private */
@@ -84,34 +99,4 @@ export class Ion {
     return this._elementRef.nativeElement;
   }
 
-  /** @private */
-  getDimensions(): { width: number, height: number, left: number, top: number} {
-    return getDimensions(this.getNativeElement(), this._getId());
-  }
-
-  /** @private */
-  width(): number {
-    return getDimensions(this.getNativeElement(), this._getId()).width;
-  }
-
-  /** @private */
-  height(): number {
-    return getDimensions(this.getNativeElement(), this._getId()).height;
-  }
-
-  /** @private */
-  destroy() {
-    clearDimensions(this._ionId);
-  }
-
-  /** internal */
-  _getId() {
-    if (!this._ionId) {
-      this._ionId = 'i' + ids++;
-    }
-    return this._ionId;
-  }
-
 }
-
-let ids: number = 0;

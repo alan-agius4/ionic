@@ -56,6 +56,7 @@ export class Toast extends ViewController {
    * @returns {Promise} Returns a promise which is resolved when the transition has completed.
    */
   present(navOptions: NavOptions = {}) {
+    navOptions.disableApp = false;
     return this._app.present(this, navOptions, AppPortal.TOAST);
   }
 
@@ -64,15 +65,6 @@ export class Toast extends ViewController {
    */
   dismissAll() {
     this._nav && this._nav.popAll();
-  }
-
-  /**
-   * @private
-   * DEPRECATED: Please inject ToastController instead
-   */
-  static create(opt: any) {
-    // deprecated warning: added beta.11 2016-06-27
-    console.warn('Toast.create(..) has been deprecated. Please inject ToastController instead');
   }
 
 }

@@ -3,11 +3,15 @@
 // iOS Content
 // --------------------------------------------------
 
+/// @prop - Background color of the outer content
 $content-ios-outer-background:          #efeff4 !default;
+
+/// @prop - Background color of the content when making transition
 $content-ios-transition-background:     #000 !default;
 
 
 .content-ios {
+  color: $text-ios-color;
   background-color: $background-ios-color;
 }
 
@@ -18,7 +22,6 @@ $content-ios-transition-background:     #000 !default;
 .content-ios hr {
   height: $hairlines-width;
 
-  color: $text-ios-color;
   background-color: rgba(0, 0, 0, .12);
 }
 
@@ -43,13 +46,13 @@ $content-ios-transition-background:     #000 !default;
 // iOS Content Padding
 // --------------------------------------------------
 
-@include content-padding($content-ios-padding);
+@include content-padding('ios', $content-ios-padding);
 
 
 // iOS Content Margin
 // --------------------------------------------------
 
-@include content-margin($content-ios-margin);
+@include content-margin('ios', $content-ios-margin);
 
 
 // iOS Content Scroll

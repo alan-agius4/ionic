@@ -1,4 +1,5 @@
 import { Animation, AnimationOptions } from '../animations/animation';
+import { Platform } from '../platform/platform';
 import { ViewController } from '../navigation/view-controller';
 
 
@@ -21,18 +22,20 @@ export class Transition extends Animation {
   _trnsStart: Function;
 
   parent: Transition;
-  hasChildTrns: boolean;
   trnsId: number;
 
-
-  constructor(public enteringView: ViewController, public leavingView: ViewController, opts: AnimationOptions, raf?: Function) {
-    super(null, opts, raf);
+  constructor(plt: Platform, public enteringView: ViewController, public leavingView: ViewController, opts: AnimationOptions) {
+    super(plt, null, opts);
   }
 
   init() {}
 
   registerStart(trnsStart: Function) {
     this._trnsStart = trnsStart;
+  }
+
+  isRoot(): boolean {
+    return !this.parent;
   }
 
   start() {

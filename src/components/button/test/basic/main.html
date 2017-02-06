@@ -10,8 +10,8 @@
 <ion-content padding style="text-align:center" no-bounce>
 
   <p>
-    <button ion-button>Default</button>
-    <button ion-button class="activated">Default.activated</button>
+    <button ion-button (click)="test($event)">Default</button>
+    <button ion-button (click)="test($event)" class="activated">Default.activated</button>
   </p>
 
   <p>
@@ -41,7 +41,7 @@
 
   <p>
     <button ion-button disabled>Button Disabled</button>
-    <a ion-button disabled>A Disabled</a>
+    <button ion-button color="secondary" disabled>Secondary Disabled</button>
   </p>
 
   <p>

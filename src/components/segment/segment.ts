@@ -63,14 +63,14 @@ export class SegmentButton {
   @Input() value: string;
 
   /**
-   * @output {SegmentButton} expression to evaluate when a segment button has been clicked
+   * @output {SegmentButton} Emitted when a segment button has been clicked.
    */
   @Output() ionSelect: EventEmitter<SegmentButton> = new EventEmitter<SegmentButton>();
 
   constructor(private _renderer: Renderer, private _elementRef: ElementRef) {}
 
   /**
-   * @private
+   * @input {boolean} If true, the user cannot interact with this element.
    */
   @Input()
   get disabled(): boolean {
@@ -124,7 +124,7 @@ export class SegmentButton {
  * @description
  * A Segment is a group of buttons, sometimes known as Segmented Controls, that allow the user to interact with a compact group of a number of controls.
  * Segments provide functionality similar to tabs, selecting one will unselect all others. You should use a tab bar instead of a segmented control when you want to let the user move back and forth between distinct pages in your app.
- * You could use Angular 2's `ngModel` or `FormBuilder` API. For an overview on how `FormBuilder` works, checkout [Angular 2 Forms](http://learnangular2.com/forms/), or [Angular FormBuilder](https://angular.io/docs/ts/latest/api/common/FormBuilder-class.html)
+ * You could use Angular 2's `ngModel` or `FormBuilder` API. For an overview on how `FormBuilder` works, checkout [Angular 2 Forms](http://learnangular2.com/forms/), or [Angular FormBuilder](https://angular.io/docs/ts/latest/api/forms/index/FormBuilder-class.html)
  *
  *
  * ```html
@@ -187,22 +187,27 @@ export class Segment extends Ion {
   value: string;
 
   /**
-   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   * @input {string} The color to use from your Sass `$colors` map.
+   * Default options are: `"primary"`, `"secondary"`, `"danger"`, `"light"`, and `"dark"`.
+   * For more information, see [Theming your App](/docs/v2/theming/theming-your-app).
    */
   @Input()
   set color(val: string) {
-    this._setColor('segment', val);
+    this._setColor(val);
   }
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
+  @Input()
   set mode(val: string) {
-    this._setMode('segment', val);
+    this._setMode( val);
   }
 
   /**
-   * @output {Any}  expression to evaluate when a segment button has been changed
+   * @output {Any} Emitted when a segment button has been changed.
    */
   @Output() ionChange: EventEmitter<SegmentButton> = new EventEmitter<SegmentButton>();
 
@@ -218,9 +223,7 @@ export class Segment extends Ion {
     renderer: Renderer,
     @Optional() ngControl: NgControl
   ) {
-    super(config, elementRef, renderer);
-
-    this.mode = config.get('mode');
+    super(config, elementRef, renderer, 'segment');
 
     if (ngControl) {
       ngControl.valueAccessor = this;
@@ -228,7 +231,7 @@ export class Segment extends Ion {
   }
 
   /**
-   * @private
+   * @input {boolean} If true, the user cannot interact with any of the buttons in the segment.
    */
   @Input()
   get disabled(): boolean {

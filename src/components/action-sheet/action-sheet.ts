@@ -58,16 +58,8 @@ export class ActionSheet extends ViewController {
    * @returns {Promise} Returns a promise which is resolved when the transition has completed.
    */
   present(navOptions: NavOptions = {}) {
+    navOptions.minClickBlockDuration = navOptions.minClickBlockDuration || 400;
     return this._app.present(this, navOptions);
-  }
-
-  /**
-   * @private
-   * DEPRECATED: Please inject ActionSheetController instead
-   */
-  static create(opt: any) {
-    // deprecated warning: added beta.11 2016-06-27
-    console.warn('ActionSheet.create(..) has been deprecated. Please inject ActionSheetController instead');
   }
 
 }

@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, Optional, Renderer, ViewChild } from '@angular/core';
+import { Component, ElementRef, Input, Optional, Renderer } from '@angular/core';
 
 import { App } from '../app/app';
 import { Config } from '../../config/config';
@@ -15,7 +15,7 @@ import { ViewController } from '../../navigation/view-controller';
  * button. A navbar can contain a `ion-title`, any number of buttons,
  * a segment, or a searchbar. Navbars must be placed within an
  * `<ion-header>` in order for them to be placed above the content.
- * It's important to note that navbar's are part of the dynamica navigation
+ * It's important to note that navbar's are part of the dynamic navigation
  * stack. If you need a static toolbar, use ion-toolbar.
  *
  * @usage
@@ -23,7 +23,7 @@ import { ViewController } from '../../navigation/view-controller';
  * <ion-header>
  *
  *   <ion-navbar>
- *     <button ion-button menuToggle>
+ *     <button ion-button icon-only menuToggle>
  *       <ion-icon name="menu"></ion-icon>
  *     </button>
  *
@@ -32,7 +32,7 @@ import { ViewController } from '../../navigation/view-controller';
  *     </ion-title>
  *
  *     <ion-buttons end>
- *       <button ion-button (click)="openModal()">
+ *       <button ion-button icon-only (click)="openModal()">
  *         <ion-icon name="options"></ion-icon>
  *       </button>
  *     </ion-buttons>
@@ -49,10 +49,8 @@ import { ViewController } from '../../navigation/view-controller';
   template:
     '<div class="toolbar-background" [ngClass]="\'toolbar-background-\' + _mode"></div>' +
     '<button (click)="backButtonClick($event)" ion-button="bar-button" class="back-button" [ngClass]="\'back-button-\' + _mode" [hidden]="_hideBb">' +
-      '<span class="button-inner">' +
-        '<ion-icon class="back-button-icon" [ngClass]="\'back-button-icon-\' + _mode" [name]="_bbIcon"></ion-icon>' +
-        '<span class="back-button-text" [ngClass]="\'back-button-text-\' + _mode" #bbTxt></span>' +
-      '</span>' +
+      '<ion-icon class="back-button-icon" [ngClass]="\'back-button-icon-\' + _mode" [name]="_bbIcon"></ion-icon>' +
+      '<span class="back-button-text" [ngClass]="\'back-button-text-\' + _mode">{{_backText}}</span>' +
     '</button>' +
     '<ng-content select="[menuToggle],ion-buttons[left]"></ng-content>' +
     '<ng-content select="ion-buttons[start]"></ng-content>' +
@@ -70,7 +68,7 @@ export class Navbar extends ToolbarBase {
   /**
    * @private
    */
-  @ViewChild('bbTxt') _bbTxt: ElementRef;
+  _backText: string;
   /**
    * @private
    */
@@ -89,23 +87,27 @@ export class Navbar extends ToolbarBase {
   _sbPadding: boolean;
 
   /**
-   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   * @input {string} The color to use from your Sass `$colors` map.
+   * Default options are: `"primary"`, `"secondary"`, `"danger"`, `"light"`, and `"dark"`.
+   * For more information, see [Theming your App](/docs/v2/theming/theming-your-app).
    */
   @Input()
   set color(val: string) {
-    this._setColor('toolbar', val);
+    this._setColor(val);
   }
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('toolbar', val);
+    this._setMode(val);
   }
 
   /**
-   * @input {boolean} whether the back button should be shown or not
+   * @input {boolean} If true, the back button will be hidden.
    */
   @Input()
   get hideBackButton(): boolean {
@@ -125,17 +127,13 @@ export class Navbar extends ToolbarBase {
   ) {
     super(config, elementRef, renderer);
 
-    this.mode = config.get('mode');
-
     viewCtrl && viewCtrl._setNavbar(this);
 
     this._bbIcon = config.get('backButtonIcon');
     this._sbPadding = config.getBoolean('statusbarPadding');
+    this._backText = config.get('backButtonText', 'Back');
   }
 
-  ngAfterViewInit() {
-    this.setBackButtonText(this._config.get('backButtonText', 'Back'));
-  }
 
   backButtonClick(ev: UIEvent) {
     ev.preventDefault();
@@ -148,7 +146,7 @@ export class Navbar extends ToolbarBase {
    * Set the text of the Back Button in the Nav Bar. Defaults to "Back".
    */
   setBackButtonText(text: string) {
-    this._renderer.setText(this._bbTxt.nativeElement, text);
+    this._backText = text;
   }
 
   /**

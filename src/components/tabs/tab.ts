@@ -3,16 +3,17 @@ import { ChangeDetectorRef, Component, ComponentFactoryResolver, ComponentRef, E
 import { App } from '../app/app';
 import { Config } from '../../config/config';
 import { DeepLinker } from '../../navigation/deep-linker';
+import { DomController } from '../../platform/dom-controller';
 import { GestureController } from '../../gestures/gesture-controller';
 import { isTrueProperty } from '../../util/util';
-import { Keyboard } from '../../util/keyboard';
+import { Keyboard } from '../../platform/keyboard';
 import { NavControllerBase } from '../../navigation/nav-controller-base';
 import { NavOptions } from '../../navigation/nav-util';
+import { Platform } from '../../platform/platform';
 import { TabButton } from './tab-button';
 import { Tabs } from './tabs';
 import { TransitionController } from '../../transitions/transition-controller';
 import { ViewController } from '../../navigation/view-controller';
-
 
 /**
  * @name Tab
@@ -20,9 +21,9 @@ import { ViewController } from '../../navigation/view-controller';
  * The Tab component, written `<ion-tab>`, is styled based on the mode and should
  * be used in conjunction with the [Tabs](../Tabs/) component.
  *
- * Each `ion-tab` is a declarative component for a [NavController](../NavController/).
+ * Each `ion-tab` is a declarative component for a [NavController](../../../navigation/NavController/).
  * Basically, each tab is a `NavController`. For more information on using
- * navigation controllers take a look at the [NavController API Docs](../../nav/NavController/).
+ * navigation controllers take a look at the [NavController API Docs](../../../navigation/NavController/).
  *
  * See the [Tabs API Docs](../Tabs/) for more details on configuring Tabs.
  *
@@ -34,7 +35,7 @@ import { ViewController } from '../../navigation/view-controller';
  *
  * ```html
  * <ion-tabs>
- *  <ion-tab [root]="chatRoot" tabTitle="Chat" tabIcon="chat"><ion-tab>
+ *  <ion-tab [root]="chatRoot" tabTitle="Chat" tabIcon="chat"></ion-tab>
  * </ion-tabs>
  * ```
  *
@@ -59,7 +60,7 @@ import { ViewController } from '../../navigation/view-controller';
  *
  * ```html
  * <ion-tabs>
- *  <ion-tab [root]="chatRoot" [rootParams]="chatParams" tabTitle="Chat" tabIcon="chat"><ion-tab>
+ *  <ion-tab [root]="chatRoot" [rootParams]="chatParams" tabTitle="Chat" tabIcon="chat"></ion-tab>
  * </ion-tabs>
  * ```
  *
@@ -96,7 +97,7 @@ import { ViewController } from '../../navigation/view-controller';
  *
  * ```html
  * <ion-tabs>
- *   <ion-tab (ionSelect)="chat()"></ion-tab>
+ *   <ion-tab (ionSelect)="chat()" tabTitle="Show Modal"></ion-tab>
  * </ion-tabs>
  * ```
  *
@@ -168,6 +169,11 @@ export class Tab extends NavControllerBase {
   btn: TabButton;
 
   /**
+   * @private
+   */
+  _tabsHideOnSubPages: boolean;
+
+  /**
    * @input {Page} Set the root page for this tab.
    */
   @Input() root: any;
@@ -203,10 +209,9 @@ export class Tab extends NavControllerBase {
   @Input() tabBadgeStyle: string;
 
   /**
-   * @input {boolean} If the tab is enabled or not. If the tab
-   * is not enabled then the tab button will still show, however,
-   * the button will appear grayed out and will not be clickable.
-   * Defaults to `true`.
+   * @input {boolean} If true, enable the tab. If false,
+   * the user cannot interact with this element.
+   * Default: `true`.
    */
   @Input()
   get enabled(): boolean {
@@ -217,8 +222,8 @@ export class Tab extends NavControllerBase {
   }
 
   /**
-   * @input {boolean} If the tab button is visible within the
-   * tabbar or not. Defaults to `true`.
+   * @input {boolean} If true, the tab button is visible within the
+   * tabbar. Default: `true`.
    */
   @Input()
   get show(): boolean {
@@ -229,7 +234,7 @@ export class Tab extends NavControllerBase {
   }
 
   /**
-   * @input {boolean} Whether it's possible to swipe-to-go-back on this tab or not.
+   * @input {boolean} If true, swipe to go back is enabled.
    */
   @Input()
   get swipeBackEnabled(): boolean {
@@ -240,7 +245,18 @@ export class Tab extends NavControllerBase {
   }
 
   /**
-   * @output {Tab} Method to call when the current tab is selected
+   * @input {boolean} If true, hide the tabs on child pages.
+   */
+  @Input()
+  get tabsHideOnSubPages(): boolean {
+    return this._tabsHideOnSubPages;
+  }
+  set tabsHideOnSubPages(val: boolean) {
+    this._tabsHideOnSubPages = isTrueProperty(val);
+  }
+
+  /**
+   * @output {Tab} Emitted when the current tab is selected.
    */
   @Output() ionSelect: EventEmitter<Tab> = new EventEmitter<Tab>();
 
@@ -248,6 +264,7 @@ export class Tab extends NavControllerBase {
     parent: Tabs,
     app: App,
     config: Config,
+    plt: Platform,
     keyboard: Keyboard,
     elementRef: ElementRef,
     zone: NgZone,
@@ -256,13 +273,14 @@ export class Tab extends NavControllerBase {
     private _cd: ChangeDetectorRef,
     gestureCtrl: GestureController,
     transCtrl: TransitionController,
-    @Optional() private linker: DeepLinker
+    @Optional() private linker: DeepLinker,
+    private _dom: DomController,
   ) {
     // A Tab is a NavController for its child pages
-    super(parent, app, config, keyboard, elementRef, zone, renderer, cfr, gestureCtrl, transCtrl, linker);
+    super(parent, app, config, plt, keyboard, elementRef, zone, renderer, cfr, gestureCtrl, transCtrl, linker, _dom);
 
     this.id = parent.add(this);
-
+    this._tabsHideOnSubPages = config.getBoolean('tabsHideOnSubPages');
     this._tabId = 'tabpanel-' + this.id;
     this._btnId = 'tab-' + this.id;
   }
@@ -287,10 +305,22 @@ export class Tab extends NavControllerBase {
    */
   load(opts: NavOptions, done?: Function) {
     if (!this._loaded && this.root) {
+      this.setElementClass('show-tab', true);
       this.push(this.root, this.rootParams, opts, done);
       this._loaded = true;
 
     } else {
+      // if this is not the Tab's initial load then we need
+      // to refresh the tabbar and content dimensions to be sure
+      // they're lined up correctly
+      this._dom.read(() => {
+        const active = this.getActive();
+        if (!active) {
+          return;
+        }
+        const content = active.getIONContent();
+        content && content.resize();
+      });
       done(true);
     }
   }
@@ -298,14 +328,14 @@ export class Tab extends NavControllerBase {
   /**
    * @private
    */
-  _viewInsert(viewCtrl: ViewController, componentRef: ComponentRef<any>, viewport: ViewContainerRef) {
-    const isTabSubPage = (this.parent._subPages && viewCtrl.index > 0);
+  _viewAttachToDOM(viewCtrl: ViewController, componentRef: ComponentRef<any>, viewport: ViewContainerRef) {
+    const isTabSubPage = (this._tabsHideOnSubPages && viewCtrl.index > 0);
 
     if (isTabSubPage) {
       viewport = this.parent.portal;
     }
 
-    super._viewInsert(viewCtrl, componentRef, viewport);
+    super._viewAttachToDOM(viewCtrl, componentRef, viewport);
 
     if (isTabSubPage) {
       // add the .tab-subpage css class to tabs pages that should act like subpages

@@ -1,10 +1,12 @@
-import { Directive, EventEmitter, Host, Input, Output, NgZone } from '@angular/core';
+import { Directive, EventEmitter, Host, Input, NgZone, Output } from '@angular/core';
 
 import { Content } from '../content/content';
-import { CSS, pointerCoord } from '../../util/dom';
-import { GestureController, GestureDelegate, GesturePriority } from '../../gestures/gesture-controller';
+import { GestureController, GestureDelegate, GesturePriority, GESTURE_REFRESHER } from '../../gestures/gesture-controller';
 import { isTrueProperty } from '../../util/util';
-import { PointerEvents, UIEventManager } from '../../util/ui-event-manager';
+import { Platform } from '../../platform/platform';
+import { pointerCoord } from '../../util/dom';
+import { PointerEvents } from '../../gestures/pointer-events';
+import { UIEventManager } from '../../gestures/ui-event-manager';
 
 
 /**
@@ -100,7 +102,7 @@ export class Refresher {
   _lastCheck: number = 0;
   _isEnabled: boolean = true;
   _gesture: GestureDelegate;
-  _events: UIEventManager = new UIEventManager(false);
+  _events: UIEventManager;
   _pointerEvents: PointerEvents;
   _top: string = '';
 
@@ -180,27 +182,29 @@ export class Refresher {
   }
 
   /**
-   * @output {event} When the user lets go and has pulled down far enough, which would be
-   * farther than the `pullMin`, then your refresh hander if fired and the state is
-   * updated to `refreshing`. From within your refresh handler, you must call the
-   * `complete()` method when your async operation has completed.
+   * @output {event} Emitted when the user lets go and has pulled down
+   * far enough, which would be farther than the `pullMin`, then your refresh hander if
+   * fired and the state is updated to `refreshing`. From within your refresh handler,
+   * you must call the `complete()` method when your async operation has completed.
    */
   @Output() ionRefresh: EventEmitter<Refresher> = new EventEmitter<Refresher>();
 
   /**
-   * @output {event} While the user is pulling down the content and exposing the refresher.
+   * @output {event} Emitted while the user is pulling down the content and exposing the refresher.
    */
   @Output() ionPull: EventEmitter<Refresher> = new EventEmitter<Refresher>();
 
   /**
-   * @output {event} When the user begins to start pulling down.
+   * @output {event} Emitted when the user begins to start pulling down.
    */
   @Output() ionStart: EventEmitter<Refresher> = new EventEmitter<Refresher>();
 
 
-  constructor(@Host() private _content: Content, private _zone: NgZone, gestureCtrl: GestureController) {
+  constructor(private _plt: Platform, @Host() private _content: Content, private _zone: NgZone, gestureCtrl: GestureController) {
+    this._events = new UIEventManager(_plt);
     _content.setElementClass('has-refresher', true);
-    this._gesture = gestureCtrl.create('refresher', {
+    this._gesture = gestureCtrl.createGesture({
+      name: GESTURE_REFRESHER,
       priority: GesturePriority.Refresher,
     });
   }
@@ -433,7 +437,7 @@ export class Refresher {
   _close(state: string, delay: string) {
     var timer: number;
 
-    function close(ev: any) {
+    function close(ev: TransitionEvent) {
       // closing is done, return to inactive state
       if (ev) {
         clearTimeout(timer);
@@ -464,22 +468,24 @@ export class Refresher {
   _setCss(y: number, duration: string, overflowVisible: boolean, delay: string) {
     this._appliedStyles = (y > 0);
 
-    var content = this._content;
-    content.setScrollElementStyle(CSS.transform, ((y > 0) ? 'translateY(' + y + 'px) translateZ(0px)' : 'translateZ(0px)'));
-    content.setScrollElementStyle(CSS.transitionDuration, duration);
-    content.setScrollElementStyle(CSS.transitionDelay, delay);
+    const content = this._content;
+    const Css = this._plt.Css;
+    content.setScrollElementStyle(Css.transform, ((y > 0) ? 'translateY(' + y + 'px) translateZ(0px)' : 'translateZ(0px)'));
+    content.setScrollElementStyle(Css.transitionDuration, duration);
+    content.setScrollElementStyle(Css.transitionDelay, delay);
     content.setScrollElementStyle('overflow', (overflowVisible ? 'hidden' : ''));
   }
 
   _setListeners(shouldListen: boolean) {
-    this._events.unlistenAll();
+    this._events.destroy();
     this._pointerEvents = null;
     if (shouldListen) {
       this._pointerEvents = this._events.pointerEvents({
         element: this._content.getScrollElement(),
         pointerDown: this._onStart.bind(this),
         pointerMove: this._onMove.bind(this),
-        pointerUp: this._onEnd.bind(this)
+        pointerUp: this._onEnd.bind(this),
+        zone: false
       });
     }
   }

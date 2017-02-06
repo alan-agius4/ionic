@@ -1,10 +1,12 @@
 import { Component, ComponentFactoryResolver, ElementRef, HostListener, Renderer, ViewChild, ViewContainerRef } from '@angular/core';
 
 import { Config } from '../../config/config';
-import { Key } from '../../util/key';
+import { Key } from '../../platform/key';
 import { NavParams } from '../../navigation/nav-params';
+import { Platform } from '../../platform/platform';
 import { ViewController } from '../../navigation/view-controller';
-
+import { GestureController, BlockerDelegate, BLOCK_ALL } from '../../gestures/gesture-controller';
+import { assert } from '../../util/util';
 
 /**
  * @private
@@ -12,7 +14,7 @@ import { ViewController } from '../../navigation/view-controller';
 @Component({
   selector: 'ion-popover',
   template:
-    '<ion-backdrop (click)="_bdClick()" [class.hide-backdrop]="!d.showBackdrop"></ion-backdrop>' +
+    '<ion-backdrop (click)="_bdClick()" [hidden]="!d.showBackdrop"></ion-backdrop>' +
     '<div class="popover-wrapper">' +
       '<div class="popover-arrow"></div>' +
       '<div class="popover-content">' +
@@ -32,10 +34,9 @@ export class PopoverCmp {
     enableBackdropDismiss?: boolean;
   };
 
-  /** @private */
   _enabled: boolean;
+  _gestureBlocker: BlockerDelegate;
 
-  /** @private */
   id: number;
 
   constructor(
@@ -43,9 +44,12 @@ export class PopoverCmp {
     public _elementRef: ElementRef,
     public _renderer: Renderer,
     public _config: Config,
+    private _plt: Platform,
     public _navParams: NavParams,
-    public _viewCtrl: ViewController
+    public _viewCtrl: ViewController,
+    gestureCtrl: GestureController,
   ) {
+    this._gestureBlocker = gestureCtrl.createBlocker(BLOCK_ALL);
     this.d = _navParams.data.opts;
 
     _renderer.setElementClass(_elementRef.nativeElement, `popover-${_config.get('mode')}`, true);
@@ -60,15 +64,11 @@ export class PopoverCmp {
     this.id = (++popoverIds);
   }
 
-  ngAfterViewInit() {
-    let activeElement: any = document.activeElement;
-    if (document.activeElement) {
-      activeElement.blur();
-    }
+  ionViewPreLoad() {
+    this._plt.focusOutActiveElement();
     this._load(this._navParams.data.component);
   }
 
-  /** @private */
   _load(component: any) {
     if (component) {
       const componentFactory = this._cfr.resolveComponentFactory(component);
@@ -76,12 +76,23 @@ export class PopoverCmp {
       // ******** DOM WRITE ****************
       const componentRef = this._viewport.createComponent(componentFactory, this._viewport.length, this._viewport.parentInjector, []);
       this._viewCtrl._setInstance(componentRef.instance);
-
       this._enabled = true;
+
+      // Subscribe to events in order to block gestures
+      // TODO, should we unsubscribe? memory leak?
+      this._viewCtrl.willEnter.subscribe(this._viewWillEnter.bind(this));
+      this._viewCtrl.didLeave.subscribe(this._viewDidLeave.bind(this));
     }
   }
 
-  /** @private */
+  _viewWillEnter() {
+    this._gestureBlocker.block();
+  }
+
+  _viewDidLeave() {
+    this._gestureBlocker.unblock();
+  }
+
   _setCssClass(componentRef: any, className: string) {
     this._renderer.setElementClass(componentRef.location.nativeElement, className, true);
   }
@@ -97,6 +108,11 @@ export class PopoverCmp {
     if (this._enabled && ev.keyCode === Key.ESCAPE && this._viewCtrl.isLast()) {
       this._bdClick();
     }
+  }
+
+  ngOnDestroy() {
+    assert(this._gestureBlocker.blocked === false, 'gesture blocker must be already unblocked');
+    this._gestureBlocker.destroy();
   }
 }
 

@@ -1,5 +1,6 @@
-import { Directive, ElementRef, Input, HostListener, Optional } from '@angular/core';
+import { Directive, Input, HostListener, Optional } from '@angular/core';
 
+import { Button } from '../button/button';
 import { MenuController } from './menu-controller';
 import { Navbar } from '../navbar/navbar';
 import { ViewController } from '../../navigation/view-controller';
@@ -8,7 +9,7 @@ import { ViewController } from '../../navigation/view-controller';
  * @name MenuToggle
  * @description
  * The `menuToggle` directive can be placed on any button to toggle a menu open or closed.
- * If it is added to the [NavBar](../../nav/NavBar) of a page, the button will only appear
+ * If it is added to the [NavBar](../../navbar/NavBar) of a page, the button will only appear
  * when the page it's in is currently a root page. See the [Menu Navigation Bar Behavior](../Menu#navigation-bar-behavior)
  * docs for more information.
  *
@@ -86,8 +87,7 @@ import { ViewController } from '../../navigation/view-controller';
 @Directive({
   selector: '[menuToggle]',
   host: {
-    '[hidden]': 'isHidden',
-    'menuToggle': '' // ensures the attr is there for css when using [menuToggle]
+    '[hidden]': 'isHidden'
   }
 })
 export class MenuToggle {
@@ -100,15 +100,28 @@ export class MenuToggle {
   /**
    * @private
    */
+  private _isButton: boolean;
+
+  /**
+   * @private
+   */
   private _inNavbar: boolean;
 
   constructor(
     private _menu: MenuController,
-    elementRef: ElementRef,
     @Optional() private _viewCtrl: ViewController,
+    @Optional() private _button: Button,
     @Optional() private _navbar: Navbar
   ) {
+    this._isButton = !!_button;
     this._inNavbar = !!_navbar;
+  }
+
+  ngAfterContentInit() {
+    // Add the bar-button-menutoggle / button-menutoggle class
+    if (this._isButton) {
+      this._button._setClass('menutoggle', true);
+    }
   }
 
   /**

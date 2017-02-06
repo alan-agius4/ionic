@@ -165,6 +165,15 @@ describe('NavController', () => {
 
   describe('insert', () => {
 
+    it('should not modify the view id', () => {
+      let view = mockView(MockView4);
+      view.id = 'custom_id';
+      nav.insert(0, view);
+
+      expect(view.id).toEqual('custom_id');
+    });
+
+
     it('should insert at the begining with no async transition', () => {
       let view4 = mockView(MockView4);
       let instance4 = spyOnLifecycles(view4);
@@ -229,6 +238,53 @@ describe('NavController', () => {
       expect(trnsDone).toHaveBeenCalledWith(hasCompleted, requiresTransition, rejectReason);
       expect(nav.length()).toEqual(1);
       expect(nav.last().component).toEqual(MockView1);
+    });
+
+    it('should not insert any view in the stack if canLeave returns false', () => {
+      let view1 = mockView(MockView1);
+      let view2 = mockView(MockView2);
+      let view3 = mockView(MockView3);
+      mockViews(nav, [view1, view2]);
+
+      let instance2 = spyOnLifecycles(view2);
+
+      let count = 0;
+      instance2.ionViewCanLeave = function () {
+        count++;
+        return (count === 3);
+      };
+
+      nav.push(view3);
+      expect(nav.length()).toEqual(2);
+
+      nav.push(view3);
+      expect(nav.length()).toEqual(2);
+
+      nav.push(view3);
+      expect(nav.length()).toEqual(3);
+    });
+
+    it('should not remove any view from the stack if canLeave returns false', () => {
+      let view1 = mockView(MockView1);
+      let view2 = mockView(MockView2);
+      mockViews(nav, [view1, view2]);
+
+      let instance2 = spyOnLifecycles(view2);
+
+      let count = 0;
+      instance2.ionViewCanLeave = function () {
+        count++;
+        return (count === 3);
+      };
+
+      nav.pop();
+      expect(nav.length()).toEqual(2);
+
+      nav.pop();
+      expect(nav.length()).toEqual(2);
+
+      nav.pop();
+      expect(nav.length()).toEqual(1);
     });
 
   });
@@ -550,14 +606,16 @@ describe('NavController', () => {
       let view2 = mockView(MockView2);
       let view3 = mockView(MockView3);
       let view4 = mockView(MockView4);
-      mockViews(nav, [view1, view2, view3, view4]);
+      let view5 = mockView(MockView5);
+      mockViews(nav, [view1, view2, view3, view4, view5]);
 
       let instance1 = spyOnLifecycles(view1);
       let instance2 = spyOnLifecycles(view2);
       let instance3 = spyOnLifecycles(view3);
       let instance4 = spyOnLifecycles(view4);
+      let instance5 = spyOnLifecycles(view5);
 
-      nav.remove(1, 2, null, trnsDone);
+      nav.remove(2, 2, null, trnsDone);
 
       expect(instance1.ionViewDidLoad).not.toHaveBeenCalled();
       expect(instance1.ionViewCanEnter).not.toHaveBeenCalled();
@@ -573,9 +631,9 @@ describe('NavController', () => {
       expect(instance2.ionViewWillEnter).not.toHaveBeenCalled();
       expect(instance2.ionViewDidEnter).not.toHaveBeenCalled();
       expect(instance2.ionViewCanLeave).not.toHaveBeenCalled();
-      expect(instance2.ionViewWillLeave).toHaveBeenCalled();
-      expect(instance2.ionViewDidLeave).toHaveBeenCalled();
-      expect(instance2.ionViewWillUnload).toHaveBeenCalled();
+      expect(instance2.ionViewWillLeave).not.toHaveBeenCalled();
+      expect(instance2.ionViewDidLeave).not.toHaveBeenCalled();
+      expect(instance2.ionViewWillUnload).not.toHaveBeenCalled();
 
       expect(instance3.ionViewDidLoad).not.toHaveBeenCalled();
       expect(instance3.ionViewCanEnter).not.toHaveBeenCalled();
@@ -591,18 +649,28 @@ describe('NavController', () => {
       expect(instance4.ionViewWillEnter).not.toHaveBeenCalled();
       expect(instance4.ionViewDidEnter).not.toHaveBeenCalled();
       expect(instance4.ionViewCanLeave).not.toHaveBeenCalled();
-      expect(instance4.ionViewWillLeave).not.toHaveBeenCalled();
-      expect(instance4.ionViewDidLeave).not.toHaveBeenCalled();
-      expect(instance4.ionViewWillUnload).not.toHaveBeenCalled();
+      expect(instance4.ionViewWillLeave).toHaveBeenCalled();
+      expect(instance4.ionViewDidLeave).toHaveBeenCalled();
+      expect(instance4.ionViewWillUnload).toHaveBeenCalled();
+
+      expect(instance5.ionViewDidLoad).not.toHaveBeenCalled();
+      expect(instance5.ionViewCanEnter).not.toHaveBeenCalled();
+      expect(instance5.ionViewWillEnter).not.toHaveBeenCalled();
+      expect(instance5.ionViewDidEnter).not.toHaveBeenCalled();
+      expect(instance5.ionViewCanLeave).not.toHaveBeenCalled();
+      expect(instance5.ionViewWillLeave).not.toHaveBeenCalled();
+      expect(instance5.ionViewDidLeave).not.toHaveBeenCalled();
+      expect(instance5.ionViewWillUnload).not.toHaveBeenCalled();
 
       let hasCompleted = true;
       let requiresTransition = false;
       expect(trnsDone).toHaveBeenCalledWith(
         hasCompleted, requiresTransition, undefined, undefined, undefined
       );
-      expect(nav.length()).toEqual(2);
+      expect(nav.length()).toEqual(3);
       expect(nav.getByIndex(0).component).toEqual(MockView1);
-      expect(nav.getByIndex(1).component).toEqual(MockView4);
+      expect(nav.getByIndex(1).component).toEqual(MockView2);
+      expect(nav.getByIndex(2).component).toEqual(MockView5);
     });
 
     it('should remove the last two views at the end', () => {
@@ -879,86 +947,6 @@ describe('NavController', () => {
     });
 
   });
-
-  // describe('_cleanup', () => {
-  //   it('should destroy views that are inactive after the active view', () => {
-  //     let view1 = new ViewController(Page1);
-  //     view1.state = STATE_INACTIVE;
-  //     let view2 = new ViewController(Page2);
-  //     view2.state = STATE_ACTIVE;
-  //     let view3 = new ViewController(Page3);
-  //     view3.state = STATE_INACTIVE;
-  //     let view4 = new ViewController(Page4);
-  //     view4.state = STATE_TRANS_ENTER;
-  //     let view5 = new ViewController(Page5);
-  //     view5.state = STATE_INACTIVE;
-  //     nav._views = [view1, view2, view3, view4, view5];
-  //     nav._cleanup();
-
-  //     expect(nav.length()).toBe(3);
-  //     expect(nav.getByIndex(0).state).toBe(STATE_INACTIVE);
-  //     expect(nav.getByIndex(0).component).toBe(Page1);
-  //     expect(nav.getByIndex(1).state).toBe(STATE_ACTIVE);
-  //     expect(nav.getByIndex(1).component).toBe(Page2);
-  //     expect(nav.getByIndex(2).state).toBe(STATE_TRANS_ENTER);
-  //     expect(nav.getByIndex(2).component).toBe(Page4);
-  //   });
-
-  //   it('should not destroy any views since the last is active', () => {
-  //     let view1 = new ViewController(Page1);
-  //     view1.state = STATE_INACTIVE;
-  //     let view2 = new ViewController(Page2);
-  //     view2.state = STATE_ACTIVE;
-  //     nav._views = [view1, view2];
-  //     nav._cleanup();
-  //     expect(nav.length()).toBe(2);
-  //   });
-
-  //   it('should call destroy for each view to be destroyed', () => {
-  //     let view1 = new ViewController(Page1);
-  //     view1.state = STATE_ACTIVE;
-  //     let view2 = new ViewController(Page2);
-  //     view2.state = STATE_INACTIVE;
-  //     let view3 = new ViewController(Page3);
-  //     view3.state = STATE_INACTIVE;
-  //     nav._views = [view1, view2, view3];
-
-  //     spyOn(view1, 'destroy');
-  //     spyOn(view2, 'destroy');
-  //     spyOn(view3, 'destroy');
-
-  //     nav._cleanup();
-
-  //     expect(nav.length()).toBe(1);
-  //     expect(view1._willUnload).not.toHaveBeenCalled();
-  //     expect(view2._willUnload).toHaveBeenCalled();
-  //     expect(view3._willUnload).toHaveBeenCalled();
-  //   });
-
-  //   it('should reset zIndexes if their is a negative zindex', () => {
-  //     let view1 = new ViewController(Page1);
-  //     view1._setPageElementRef( mockElementRef() );
-  //     view1.state = STATE_INACTIVE;
-  //     view1._zIndex = -1;
-
-  //     let view2 = new ViewController(Page2);
-  //     view2._setPageElementRef( mockElementRef() );
-  //     view2.state = STATE_INACTIVE;
-  //     view2._zIndex = 0;
-
-  //     let view3 = new ViewController(Page3);
-  //     view3._setPageElementRef( mockElementRef() );
-  //     view3.state = STATE_ACTIVE;
-  //     view3._zIndex = 1;
-
-  //     nav._views = [view1, view2, view3];
-  //     nav._cleanup();
-
-  //     expect(view1._zIndex).toEqual(100);
-  //     expect(view2._zIndex).toEqual(101);
-  //     expect(view3._zIndex).toEqual(102);
-  //   });
-  // });
 
   let nav: NavControllerBase;
   let trnsDone: jasmine.Spy;

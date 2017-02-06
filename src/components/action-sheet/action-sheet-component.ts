@@ -1,11 +1,13 @@
-import { Component, Renderer, ElementRef, HostListener, ViewEncapsulation } from '@angular/core';
+import { Component, ElementRef, HostListener, Renderer, ViewEncapsulation } from '@angular/core';
 
+import { assert } from '../../util/util';
+import { BlockerDelegate, GestureController, BLOCK_ALL } from '../../gestures/gesture-controller';
 import { Config } from '../../config/config';
-import { Form } from '../../util/form';
-import { Key } from '../../util/key';
+import { Key } from '../../platform/key';
+import { Platform } from '../../platform/platform';
 import { NavParams } from '../../navigation/nav-params';
+import { NavOptions } from '../../navigation/nav-util';
 import { ViewController } from '../../navigation/view-controller';
-
 
 /**
  * @private
@@ -13,7 +15,7 @@ import { ViewController } from '../../navigation/view-controller';
 @Component({
   selector: 'ion-action-sheet',
   template:
-    '<ion-backdrop (click)="bdClick()"></ion-backdrop>' +
+    '<ion-backdrop (click)="bdClick()" [class.backdrop-no-tappable]="!d.enableBackdropDismiss"></ion-backdrop>' +
     '<div class="action-sheet-wrapper">' +
       '<div class="action-sheet-container">' +
         '<div class="action-sheet-group">' +
@@ -53,17 +55,20 @@ export class ActionSheetCmp {
   hdrId: string;
   id: number;
   mode: string;
+  gestureBlocker: BlockerDelegate;
 
   constructor(
     private _viewCtrl: ViewController,
-    private _config: Config,
+    config: Config,
+    private _plt: Platform,
     private _elementRef: ElementRef,
-    private _form: Form,
+    gestureCtrl: GestureController,
     params: NavParams,
     renderer: Renderer
   ) {
+    this.gestureBlocker = gestureCtrl.createBlocker(BLOCK_ALL);
     this.d = params.data;
-    this.mode = _config.get('mode');
+    this.mode = config.get('mode');
     renderer.setElementClass(_elementRef.nativeElement, `action-sheet-${this.mode}`, true);
 
     if (this.d.cssClass) {
@@ -110,8 +115,16 @@ export class ActionSheetCmp {
     this.d.buttons = buttons;
   }
 
+  ionViewWillEnter() {
+    this.gestureBlocker.block();
+  }
+
+  ionViewDidLeave() {
+    this.gestureBlocker.unblock();
+  }
+
   ionViewDidEnter() {
-    this._form.focusOut();
+    this._plt.focusOutActiveElement();
 
     let focusableEle = this._elementRef.nativeElement.querySelector('button');
     if (focusableEle) {
@@ -130,7 +143,7 @@ export class ActionSheetCmp {
     }
   }
 
-  click(button: any, dismissDelay?: number) {
+  click(button: any) {
     if (! this.enabled ) {
       return;
     }
@@ -146,16 +159,14 @@ export class ActionSheetCmp {
     }
 
     if (shouldDismiss) {
-      setTimeout(() => {
-        this.dismiss(button.role);
-      }, dismissDelay || this._config.get('pageTransitionDelay'));
+      this.dismiss(button.role);
     }
   }
 
   bdClick() {
     if (this.enabled && this.d.enableBackdropDismiss) {
       if (this.d.cancelButton) {
-        this.click(this.d.cancelButton, 1);
+        this.click(this.d.cancelButton);
 
       } else {
         this.dismiss('backdrop');
@@ -164,7 +175,15 @@ export class ActionSheetCmp {
   }
 
   dismiss(role: any): Promise<any> {
-    return this._viewCtrl.dismiss(null, role);
+    const opts: NavOptions = {
+      minClickBlockDuration: 400
+    };
+    return this._viewCtrl.dismiss(null, role, opts);
+  }
+
+  ngOnDestroy() {
+    assert(this.gestureBlocker.blocked === false, 'gesture blocker must be already unblocked');
+    this.gestureBlocker.destroy();
   }
 }
 

@@ -1,8 +1,8 @@
-import { AfterContentInit, Component, ElementRef, EventEmitter, forwardRef, HostListener, Input, OnDestroy, Optional, Output, Renderer, ViewEncapsulation } from '@angular/core';
+import { AfterContentInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, forwardRef, HostListener, Input, OnDestroy, Optional, Output, Renderer, ViewEncapsulation } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 import { Config } from '../../config/config';
-import { Form } from '../../util/form';
+import { Form, IonicTapInput } from '../../util/form';
 import { Ion } from '../ion';
 import { isTrueProperty } from '../../util/util';
 import { Item } from '../item/item';
@@ -72,7 +72,7 @@ export const CHECKBOX_VALUE_ACCESSOR: any = {
   providers: [CHECKBOX_VALUE_ACCESSOR],
   encapsulation: ViewEncapsulation.None,
 })
-export class Checkbox extends Ion implements AfterContentInit, ControlValueAccessor, OnDestroy {
+export class Checkbox extends Ion implements IonicTapInput, AfterContentInit, ControlValueAccessor, OnDestroy {
   /** @private */
   _checked: boolean = false;
   /** @private */
@@ -87,23 +87,27 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
   id: string;
 
   /**
-   * @input {string} The predefined color to use. For example: `"primary"`, `"secondary"`, `"danger"`.
+   * @input {string} The color to use from your Sass `$colors` map.
+   * Default options are: `"primary"`, `"secondary"`, `"danger"`, `"light"`, and `"dark"`.
+   * For more information, see [Theming your App](/docs/v2/theming/theming-your-app).
    */
   @Input()
   set color(val: string) {
-    this._setColor('checkbox', val);
+    this._setColor(val);
   }
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('checkbox', val);
+    this._setMode(val);
   }
 
   /**
-   * @output {Checkbox} expression to evaluate when the checkbox value changes
+   * @output {Checkbox} Emitted when the checkbox value changes.
    */
   @Output() ionChange: EventEmitter<Checkbox> = new EventEmitter<Checkbox>();
 
@@ -112,11 +116,10 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
     private _form: Form,
     @Optional() private _item: Item,
     elementRef: ElementRef,
-    renderer: Renderer
+    renderer: Renderer,
+    private _cd: ChangeDetectorRef
   ) {
-    super(config, elementRef, renderer);
-
-    this.mode = config.get('mode');
+    super(config, elementRef, renderer, 'checkbox');
 
     _form.register(this);
 
@@ -139,7 +142,7 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
   }
 
   /**
-   * @input {boolean} whether or not the checkbox is checked (defaults to false)
+   * @input {boolean} If true, the element is selected.
    */
   @Input()
   get checked(): boolean {
@@ -155,7 +158,7 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
    * @private
    */
   _setChecked(isChecked: boolean) {
-    if (!this._disabled && isChecked !== this._checked) {
+    if (isChecked !== this._checked) {
       this._checked = isChecked;
       if (this._init) {
         this.ionChange.emit(this);
@@ -168,7 +171,7 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
    * @private
    */
   writeValue(val: any) {
-    this._setChecked( isTrueProperty(val) );
+    this._setChecked(isTrueProperty(val));
   }
 
   /**
@@ -190,7 +193,7 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
   registerOnTouched(fn: any) { this.onTouched = fn; }
 
   /**
-   * @input {boolean} whether or not the checkbox is disabled or not.
+   * @input {boolean} If true, the user cannot interact with this element.
    */
   @Input()
   get disabled(): boolean {
@@ -210,18 +213,33 @@ export class Checkbox extends Ion implements AfterContentInit, ControlValueAcces
     console.debug('checkbox, onChange (no ngModel)', isChecked);
     this._setChecked(isChecked);
     this.onTouched();
+    this._cd.detectChanges();
   }
 
   /**
    * @private
    */
-  onTouched() {}
+  initFocus() {
+    this._elementRef.nativeElement.querySelector('button').focus();
+  }
+
+  /**
+   * @private
+   */
+  onTouched() { }
 
   /**
    * @private
    */
   ngAfterContentInit() {
     this._init = true;
+  }
+
+  /**
+   * @private
+   */
+  setDisabledState(isDisabled: boolean) {
+    this.disabled = isDisabled;
   }
 
   /**

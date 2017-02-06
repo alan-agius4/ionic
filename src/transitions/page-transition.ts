@@ -1,5 +1,4 @@
 import { Animation } from '../animations/animation';
-import { Content } from '../components/content/content';
 import { Transition } from './transition';
 
 
@@ -11,31 +10,16 @@ export class PageTransition extends Transition {
 
   init() {
     if (this.enteringView) {
-      this.enteringPage = new Animation(this.enteringView.pageRef());
+      this.enteringPage = new Animation(this.plt, this.enteringView.pageRef());
       this.add(this.enteringPage.beforeAddClass('show-page'));
 
-      this.beforeAddRead(this.readDimensions.bind(this));
-      this.beforeAddWrite(this.writeDimensions.bind(this));
-    }
-  }
-
-  /**
-   * DOM READ
-   */
-  readDimensions() {
-    const content = <Content>this.enteringView.getContent();
-    if (content && content instanceof Content) {
-      content.readDimensions();
-    }
-  }
-
-  /**
-   * DOM WRITE
-   */
-  writeDimensions() {
-    const content = <Content>this.enteringView.getContent();
-    if (content && content instanceof Content) {
-      content.writeDimensions();
+      // Resize content before transition starts
+      this.beforeAddRead(() => {
+        this.enteringView.readReady.emit();
+      });
+      this.beforeAddWrite(() => {
+        this.enteringView.writeReady.emit();
+      });
     }
   }
 

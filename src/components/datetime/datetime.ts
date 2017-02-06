@@ -7,7 +7,7 @@ import { PickerColumn, PickerColumnOption } from '../picker/picker-options';
 import { Form } from '../../util/form';
 import { Ion } from '../ion';
 import { Item } from '../item/item';
-import { merge, isBlank, isPresent, isTrueProperty, isArray, isString } from '../../util/util';
+import { deepCopy, isBlank, isPresent, isTrueProperty, isArray, isString } from '../../util/util';
 import { dateValueRange, renderDateTime, renderTextFormat, convertFormatToKey, getValueFromFormat, parseTemplate, parseDate, updateDate, DateTimeData, convertDataToISO, daysInMonth, dateSortValue, dateDataSortValue, LocaleData } from '../../util/datetime-util';
 
 export const DATETIME_VALUE_ACCESSOR: any = {
@@ -309,7 +309,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
    * the datetime picker's columns. See the `pickerFormat` input description for
    * more info. Defaults to `MMM D, YYYY`.
    */
-  @Input() displayFormat: string = 'MMM D, YYYY';
+  @Input() displayFormat: string;
 
   /**
    * @input {string} The format of the date and time picker columns the user selects.
@@ -408,20 +408,22 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
   @Input() pickerOptions: any = {};
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('datetime', val);
+    this._setMode(val);
   }
 
   /**
-   * @output {any} Any expression to evaluate when the datetime selection has changed.
+   * @output {any} Emitted when the datetime selection has changed.
    */
   @Output() ionChange: EventEmitter<any> = new EventEmitter();
 
   /**
-   * @output {any} Any expression to evaluate when the datetime selection was cancelled.
+   * @output {any} Emitted when the datetime selection was cancelled.
    */
   @Output() ionCancel: EventEmitter<any> = new EventEmitter();
 
@@ -433,9 +435,8 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
     @Optional() private _item: Item,
     @Optional() private _pickerCtrl: PickerController
   ) {
-    super(config, elementRef, renderer);
+    super(config, elementRef, renderer, 'datetime');
 
-    this.mode = config.get('mode');
     _form.register(this);
 
     if (_item) {
@@ -474,9 +475,9 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
     console.debug('datetime, open picker');
 
     // the user may have assigned some options specifically for the alert
-    let pickerOptions = merge({}, this.pickerOptions);
+    const pickerOptions = deepCopy(this.pickerOptions);
 
-    let picker = this._pickerCtrl.create(pickerOptions);
+    const picker = this._pickerCtrl.create(pickerOptions);
     pickerOptions.buttons = [
       {
         text: this.cancelText,
@@ -488,7 +489,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
       {
         text: this.doneText,
         handler: (data: any) => {
-          console.log('datetime, done', data);
+          console.debug('datetime, done', data);
           this.onChange(data);
           this.ionChange.emit(data);
         }
@@ -516,7 +517,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
   generate(picker: Picker) {
     // if a picker format wasn't provided, then fallback
     // to use the display format
-    let template = this.pickerFormat || this.displayFormat;
+    let template = this.pickerFormat || this.displayFormat || DEFAULT_FORMAT;
 
     if (isPresent(template)) {
       // make sure we've got up to date sizing information
@@ -595,9 +596,15 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
     let monthOpt: PickerColumnOption;
     let dayOpt: PickerColumnOption;
 
-    // default to assuming today's year
-    let selectedYear = today.getFullYear();
+    // default to the current year
+    let selectedYear: number = today.getFullYear();
+
     if (yearCol) {
+      // default to the first value if the current year doesn't exist in the options
+      if (!yearCol.options.find(col => col.value === today.getFullYear())) {
+        selectedYear = yearCol.options[0].value;
+      }
+
       yearOpt = yearCol.options[yearCol.selectedIndex];
       if (yearOpt) {
         // they have a selected year value
@@ -632,7 +639,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
         // loop through each month and see if it
         // is within the min/max date range
         monthOpt.disabled = (dateSortValue(selectedYear, monthOpt.value, 31) < minCompareVal ||
-                             dateSortValue(selectedYear, monthOpt.value, 1) > maxCompareVal);
+          dateSortValue(selectedYear, monthOpt.value, 1) > maxCompareVal);
       }
     }
 
@@ -640,7 +647,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
       if (isPresent(selectedMonth)) {
         // enable/disable which days are valid
         // to show within the min/max date range
-        for (i = 0; i < 31; i++) {
+        for (i = 0; i < dayCol.options.length; i++) {
           dayOpt = dayCol.options[i];
 
           // loop through each day and see if it
@@ -648,13 +655,13 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
           var compareVal = dateSortValue(selectedYear, selectedMonth, dayOpt.value);
 
           dayOpt.disabled = (compareVal < minCompareVal ||
-                             compareVal > maxCompareVal ||
-                             numDaysInMonth <= i);
+            compareVal > maxCompareVal ||
+            numDaysInMonth <= i);
         }
 
       } else {
         // enable/disable which numbers of days to show in this month
-        for (i = 0; i < 31; i++) {
+        for (i = 0; i < dayCol.options.length; i++) {
           dayCol.options[i].disabled = (numDaysInMonth <= i);
         }
       }
@@ -683,17 +690,16 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
 
     if (columns.length === 2) {
       var width = Math.max(columns[0], columns[1]);
-      pickerColumns[0].columnWidth = pickerColumns[1].columnWidth = `${width * 16}px`;
+      pickerColumns[0].align = 'right';
+      pickerColumns[1].align = 'left';
+      pickerColumns[0].optionsWidth = pickerColumns[1].optionsWidth = `${width * 17}px`;
 
     } else if (columns.length === 3) {
       var width = Math.max(columns[0], columns[2]);
-      pickerColumns[1].columnWidth = `${columns[1] * 16}px`;
-      pickerColumns[0].columnWidth = pickerColumns[2].columnWidth = `${width * 16}px`;
-
-    } else if (columns.length > 3) {
-      columns.forEach((col, i) => {
-        pickerColumns[i].columnWidth = `${col * 12}px`;
-      });
+      pickerColumns[0].align = 'right';
+      pickerColumns[1].columnWidth = `${columns[1] * 17}px`;
+      pickerColumns[0].optionsWidth = pickerColumns[2].optionsWidth = `${width * 17}px`;
+      pickerColumns[2].align = 'left';
     }
   }
 
@@ -725,14 +731,15 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
    */
   updateText() {
     // create the text of the formatted data
-    this._text = renderDateTime(this.displayFormat, this._value, this._locale);
+    const template = this.displayFormat || this.pickerFormat || DEFAULT_FORMAT;
+    this._text = renderDateTime(template, this._value, this._locale);
   }
 
   /**
    * @private
    */
-  calcMinMax() {
-    let todaysYear = new Date().getFullYear();
+  calcMinMax(now?: Date) {
+    const todaysYear = (now || new Date()).getFullYear();
 
     if (isBlank(this.min)) {
       if (isPresent(this.yearValues)) {
@@ -752,8 +759,18 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
       }
     }
 
-    let min = this._min = parseDate(this.min);
-    let max = this._max = parseDate(this.max);
+    const min = this._min = parseDate(this.min);
+    const max = this._max = parseDate(this.max);
+
+    if (min.year > max.year) {
+      min.year = max.year - 100;
+    } else if (min.year === max.year) {
+      if (min.month > max.month) {
+        min.month = 1;
+      } else if (min.month === max.month && min.day > max.day) {
+        min.day = 1;
+      }
+    }
 
     min.month = min.month || 1;
     min.day = min.day || 1;
@@ -769,14 +786,14 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
   }
 
   /**
-   * @input {boolean} Whether or not the datetime component is disabled. Default `false`.
+   * @input {boolean} If true, the user cannot interact with this element.
    */
   @Input()
-  get disabled() {
+  get disabled(): boolean {
     return this._disabled;
   }
 
-  set disabled(val) {
+  set disabled(val: boolean) {
     this._disabled = isTrueProperty(val);
     this._item && this._item.setElementClass('item-datetime-disabled', this._disabled);
   }
@@ -799,7 +816,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
     // then check to see if they're in the config
     // if neither were provided then it will use default English names
     ['monthNames', 'monthShortNames', 'dayNames', 'dayShortNames'].forEach(type => {
-      this._locale[type] = convertToArrayOfStrings(isPresent(this[type]) ? this[type] : this._config.get(type), type);
+      (<any>this)._locale[type] = convertToArrayOfStrings(isPresent((<any>this)[type]) ? (<any>this)[type] : this._config.get(type), type);
     });
 
     // update how the datetime value is displayed as formatted text
@@ -837,6 +854,7 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
     console.debug('datetime, onChange w/out formControlName', val);
     this.setValue(val);
     this.updateText();
+    this.checkHasValue(val);
     this.onTouched();
   }
 
@@ -844,6 +862,13 @@ export class DateTime extends Ion implements AfterContentInit, ControlValueAcces
    * @private
    */
   onTouched() { }
+
+  /**
+   * @private
+   */
+  setDisabledState(isDisabled: boolean) {
+    this.disabled = isDisabled;
+  }
 
   /**
    * @private
@@ -916,3 +941,5 @@ function convertToArrayOfStrings(input: any, type: string): string[] {
     return values;
   }
 }
+
+const DEFAULT_FORMAT = 'MMM D, YYYY';

@@ -1,5 +1,6 @@
 import { VirtualCell, VirtualData, VirtualNode } from '../virtual-util';
-import { processRecords, populateNodeData, initReadNodes, getVirtualHeight, adjustRendered } from '../virtual-util';
+import { processRecords, populateNodeData, initReadNodes, getVirtualHeight, adjustRendered, estimateHeight } from '../virtual-util';
+import { mockPlatform } from '../../../util/mock-providers';
 
 
 describe('VirtualScroll', () => {
@@ -30,6 +31,15 @@ describe('VirtualScroll', () => {
       };
       return styles;
     };
+  });
+
+  describe('estimateHeight', () =>  {
+
+    it('should return zero when no records', () => {
+      const h = estimateHeight(0, undefined, 100, .25);
+      expect(h).toEqual(0);
+    });
+
   });
 
   describe('processRecords', () =>  {
@@ -212,6 +222,20 @@ describe('VirtualScroll', () => {
 
   describe('populateNodeData', () => {
 
+    it('should set no nodes when no records', () => {
+      nodes = [];
+      records = [];
+
+      let startCellIndex = 0;
+      let endCellIndex = 0;
+
+      populateNodeData(startCellIndex, endCellIndex, data.viewWidth, true,
+                    cells, records, nodes, viewContainer,
+                    itmTmp, hdrTmp, ftrTmp, false);
+
+      expect(nodes.length).toBe(0);
+    });
+
     it('should skip already rendered, and create nodes', () => {
       cells = [
         {row: 0, tmpl: TEMPLATE_ITEM},
@@ -266,7 +290,7 @@ describe('VirtualScroll', () => {
                        cells, records, nodes, viewContainer,
                        itmTmp, hdrTmp, ftrTmp, true);
 
-      expect(nodes.length).toBe(6);
+      expect(nodes.length).toBe(3);
 
       expect(nodes[0].cell).toBe(2);
       expect(nodes[1].cell).toBe(3);
@@ -301,7 +325,7 @@ describe('VirtualScroll', () => {
         {row: 0, tmpl: TEMPLATE_FOOTER, reads: 0},
       ];
 
-      initReadNodes(nodes, cells, data);
+      initReadNodes(mockPlatform(), nodes, cells, data);
 
       expect(cells[0].top).toBe(firstTop);
       expect(cells[0].left).toBe(0);
@@ -351,7 +375,7 @@ describe('VirtualScroll', () => {
         {row: 4, tmpl: TEMPLATE_FOOTER, reads: 0},
       ];
 
-      initReadNodes(nodes, cells, data);
+      initReadNodes(mockPlatform(), nodes, cells, data);
 
       expect(cells[0].top).toBe(0);
       expect(cells[0].height).toBe(HEIGHT_HEADER);

@@ -23,6 +23,8 @@ export const PROJECT_ROOT = join(__dirname, '../..');
 export const DEMOS_ROOT = join(PROJECT_ROOT, DEMOS_NAME);
 export const DEMOS_SRC_ROOT = join(DEMOS_ROOT, SRC_NAME);
 export const DIST_ROOT = join(PROJECT_ROOT, DIST_NAME);
+export const DIST_DEMOS_ROOT = join(DIST_ROOT, DEMOS_NAME);
+export const DIST_DEMOS_COMPONENTS_ROOT = join(DIST_DEMOS_ROOT, COMPONENTS_NAME);
 export const DIST_E2E_ROOT = join(DIST_ROOT, E2E_NAME);
 export const DIST_E2E_COMPONENTS_ROOT = join(DIST_E2E_ROOT, COMPONENTS_NAME);
 export const DIST_BUILD_ROOT = join(DIST_ROOT, PACKAGE_NAME);
@@ -36,6 +38,7 @@ export const SCRIPTS_ROOT = join(PROJECT_ROOT, SCRIPTS_NAME);
 export const SRC_ROOT = join(PROJECT_ROOT, SRC_NAME);
 
 export const SRC_COMPONENTS_ROOT = join(SRC_ROOT, COMPONENTS_NAME);
+export const WORKERS_SRC = join(SCRIPTS_ROOT, 'workers');
 
 
 // NPM
@@ -45,4 +48,4 @@ export const NPM_VENDOR_FILES = [
 
 
 // SERVER
-export const LOCAL_SERVER_PORT = 8080;
+export const LOCAL_SERVER_PORT = 8000;

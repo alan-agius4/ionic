@@ -1,6 +1,7 @@
 import { Component, ComponentFactoryResolver, ElementRef, Inject, OnInit, OpaqueToken, Renderer, ViewChild, ViewContainerRef } from '@angular/core';
 
 import { App } from './app';
+import { assert } from '../../util/util';
 import { Config } from '../../config/config';
 import { Ion } from '../ion';
 import { OverlayPortal } from '../nav/overlay-portal';
@@ -15,14 +16,18 @@ export const AppRootToken = new OpaqueToken('USERROOT');
   selector: 'ion-app',
   template:
     '<div #viewport app-viewport></div>' +
+    '<div #modalPortal overlay-portal></div>' +
     '<div #overlayPortal overlay-portal></div>' +
     '<div #loadingPortal class="loading-portal" overlay-portal></div>' +
-    '<div #toastPortal class="toast-portal" overlay-portal></div>' +
+    '<div #toastPortal class="toast-portal" [overlay-portal]="10000"></div>' +
     '<div class="click-block"></div>'
 })
 export class IonicApp extends Ion implements OnInit {
-
+  private _stopScrollPlugin: any;
+  private _tmr: number;
   @ViewChild('viewport', {read: ViewContainerRef}) _viewport: ViewContainerRef;
+
+  @ViewChild('modalPortal', { read: OverlayPortal }) _modalPortal: OverlayPortal;
 
   @ViewChild('overlayPortal', { read: OverlayPortal }) _overlayPortal: OverlayPortal;
 
@@ -36,12 +41,13 @@ export class IonicApp extends Ion implements OnInit {
     elementRef: ElementRef,
     renderer: Renderer,
     config: Config,
-    private _platform: Platform,
+    private _plt: Platform,
     app: App
   ) {
     super(config, elementRef, renderer);
     // register with App that this is Ionic's appRoot component. tada!
     app._appRoot = this;
+    this._stopScrollPlugin = (<any>window)['IonicStopScroll'];
   }
 
   ngOnInit() {
@@ -56,8 +62,8 @@ export class IonicApp extends Ion implements OnInit {
     // ios/md/wp
     this.setElementClass(this._config.get('mode'), true);
 
-    const versions = this._platform.versions();
-    this._platform.platforms().forEach(platformName => {
+    const versions = this._plt.versions();
+    this._plt.platforms().forEach(platformName => {
       // platform-ios
       let platformClass = 'platform-' + platformName;
       this.setElementClass(platformClass, true);
@@ -83,7 +89,7 @@ export class IonicApp extends Ion implements OnInit {
     // which means angular and ionic has fully loaded!
     // fire off the platform prepare ready, which could
     // have been switched out by any of the platform engines
-    this._platform.prepareReady();
+    this._plt.prepareReady();
   }
 
   /**
@@ -96,20 +102,83 @@ export class IonicApp extends Ion implements OnInit {
     if (portal === AppPortal.TOAST) {
       return this._toastPortal;
     }
+    // Modals need their own overlay becuase we don't want an ActionSheet
+    // or Alert to trigger lifecycle events inside a modal
+    if (portal === AppPortal.MODAL) {
+      return this._modalPortal;
+    }
     return this._overlayPortal;
   }
 
   /**
    * @private
    */
+  _getActivePortal(): OverlayPortal {
+    const defaultPortal = this._overlayPortal;
+    const modalPortal = this._modalPortal;
+    const hasModal = modalPortal.length() > 0;
+    const hasDefault = defaultPortal.length() > 0;
+
+    if (!hasModal && !hasDefault) {
+      return null;
+
+    } else if (hasModal && hasDefault) {
+      var defaultIndex = defaultPortal.getActive().getZIndex();
+      var modalIndex = modalPortal.getActive().getZIndex();
+
+      if (defaultIndex > modalIndex) {
+        return defaultPortal;
+      } else {
+        assert(modalIndex > defaultIndex, 'modal and default zIndex can not be equal');
+        return modalPortal;
+      }
+
+    } if (hasModal) {
+      return modalPortal;
+
+    } else if (hasDefault) {
+      return defaultPortal;
+    }
+
+  }
+
+  /**
+   * @private
+   */
   _disableScroll(shouldDisableScroll: boolean) {
-    this.setElementClass('disable-scroll', shouldDisableScroll);
+    if (shouldDisableScroll) {
+      this.stopScroll().then(() => {
+        this._tmr = this._plt.timeout(() => {
+          console.debug('App Root: adding .disable-scroll');
+          this.setElementClass('disable-scroll', true);
+        }, 32);
+      });
+    } else {
+      let plugin = this._stopScrollPlugin;
+      if (plugin && plugin.cancel) {
+        plugin.cancel();
+      }
+      clearTimeout(this._tmr);
+      console.debug('App Root: removing .disable-scroll');
+      this.setElementClass('disable-scroll', false);
+    }
+  }
+
+  stopScroll(): Promise<boolean> {
+    if (this._stopScrollPlugin) {
+      return new Promise((resolve, reject) => {
+        this._stopScrollPlugin.stop(() => resolve(true));
+      });
+    } else {
+      return Promise.resolve(false);
+    }
   }
 
 }
 
-export enum AppPortal {
+export const enum AppPortal {
   DEFAULT,
+  MODAL,
   LOADING,
   TOAST
 };

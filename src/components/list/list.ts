@@ -1,10 +1,12 @@
 import { Directive, ElementRef, Input, Renderer } from '@angular/core';
 
 import { Config } from '../../config/config';
+import { DomController } from '../../platform/dom-controller';
+import { GestureController } from '../../gestures/gesture-controller';
 import { Ion } from '../ion';
 import { isTrueProperty } from '../../util/util';
 import { ItemSlidingGesture } from '../item/item-sliding-gesture';
-import { GestureController } from '../../gestures/gesture-controller';
+import { Platform } from '../../platform/platform';
 
 /**
  * The List is a widely used interface element in almost any mobile app,
@@ -53,23 +55,25 @@ export class List extends Ion {
     config: Config,
     elementRef: ElementRef,
     renderer: Renderer,
-    public _gestureCtrl: GestureController
+    private _plt: Platform,
+    private _gestureCtrl: GestureController,
+    private _domCtrl: DomController,
   ) {
-    super(config, elementRef, renderer);
-
-    this.mode = config.get('mode');
+    super(config, elementRef, renderer, 'list');
   }
 
   /**
-   * @input {string} The mode to apply to this component.
+   * @input {string} The mode determines which platform styles to use.
+   * Possible values are: `"ios"`, `"md"`, or `"wp"`.
+   * For more information, see [Platform Styles](/docs/v2/theming/platform-specific-styles).
    */
   @Input()
   set mode(val: string) {
-    this._setMode('list', val);
+    this._setMode(val);
   }
 
   /**
-   * @input {boolean} shouldEnable whether the item-sliding should be enabled or not
+   * @input {boolean} If true, the sliding items will be enabled.
    */
   @Input()
   get sliding(): boolean {
@@ -97,7 +101,7 @@ export class List extends Ion {
 
     } else if (!this._slidingGesture) {
       console.debug('enableSlidingItems');
-      this._slidingGesture = new ItemSlidingGesture(this);
+      this._slidingGesture = new ItemSlidingGesture(this._plt, this, this._gestureCtrl, this._domCtrl);
       this._slidingGesture.listen();
     }
   }

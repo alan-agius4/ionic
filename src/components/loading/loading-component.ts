@@ -1,10 +1,12 @@
 import { Component, ElementRef, Renderer, ViewEncapsulation } from '@angular/core';
 
 import { Config } from '../../config/config';
-import { isDefined, isUndefined } from '../../util/util';
+import { GestureController, BlockerDelegate, BLOCK_ALL } from '../../gestures/gesture-controller';
+import { isDefined, isUndefined, assert } from '../../util/util';
+import { LoadingOptions } from './loading-options';
 import { NavParams } from '../../navigation/nav-params';
+import { Platform } from '../../platform/platform';
 import { ViewController } from '../../navigation/view-controller';
-
 
 /**
 * @private
@@ -12,7 +14,7 @@ import { ViewController } from '../../navigation/view-controller';
 @Component({
   selector: 'ion-loading',
   template:
-    '<ion-backdrop [class.hide-backdrop]="!d.showBackdrop"></ion-backdrop>' +
+    '<ion-backdrop [hidden]="!d.showBackdrop"></ion-backdrop>' +
     '<div class="loading-wrapper">' +
       '<div *ngIf="showSpinner" class="loading-spinner">' +
         '<ion-spinner [name]="d.spinner"></ion-spinner>' +
@@ -25,26 +27,23 @@ import { ViewController } from '../../navigation/view-controller';
   encapsulation: ViewEncapsulation.None,
 })
 export class LoadingCmp {
-  d: {
-    spinner?: string;
-    content?: string;
-    cssClass?: string;
-    showBackdrop?: boolean;
-    dismissOnPageChange?: boolean;
-    delay?: number;
-    duration?: number;
-  };
+  d: LoadingOptions;
   id: number;
   showSpinner: boolean;
   durationTimeout: number;
+  gestureBlocker: BlockerDelegate;
 
   constructor(
     private _viewCtrl: ViewController,
     private _config: Config,
+    private _plt: Platform,
     private _elementRef: ElementRef,
+    gestureCtrl: GestureController,
     params: NavParams,
     renderer: Renderer
   ) {
+    assert(params.data, 'params data must be valid');
+    this.gestureBlocker = gestureCtrl.createBlocker(BLOCK_ALL);
     this.d = params.data;
 
     renderer.setElementClass(_elementRef.nativeElement, `loading-${_config.get('mode')}`, true);
@@ -70,17 +69,20 @@ export class LoadingCmp {
     this.showSpinner = isDefined(this.d.spinner) && this.d.spinner !== 'hide';
   }
 
+  ionViewWillEnter() {
+    this.gestureBlocker.block();
+  }
+
+  ionViewDidLeave() {
+    this.gestureBlocker.unblock();
+  }
+
   ionViewDidEnter() {
-    let activeElement: any = document.activeElement;
-    if (document.activeElement) {
-      activeElement.blur();
-    }
+    this._plt.focusOutActiveElement();
 
     // If there is a duration, dismiss after that amount of time
     if ( this.d && this.d.duration ) {
-      this.durationTimeout = (<any> setTimeout( () => {
-        this.dismiss('backdrop');
-      }, this.d.duration));
+      this.durationTimeout = setTimeout(() => this.dismiss('backdrop'), this.d.duration);
     }
 
   }
@@ -90,6 +92,11 @@ export class LoadingCmp {
       clearTimeout(this.durationTimeout);
     }
     return this._viewCtrl.dismiss(null, role);
+  }
+
+  ngOnDestroy() {
+    assert(this.gestureBlocker.blocked === false, 'gesture blocker must be already unblocked');
+    this.gestureBlocker.destroy();
   }
 }
 

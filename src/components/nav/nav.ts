@@ -3,11 +3,14 @@ import { AfterViewInit, Component, ComponentFactoryResolver, ElementRef, Input, 
 import { App } from '../app/app';
 import { Config } from '../../config/config';
 import { DeepLinker } from '../../navigation/deep-linker';
+import { DomController } from '../../platform/dom-controller';
 import { GestureController } from '../../gestures/gesture-controller';
 import { isTrueProperty } from '../../util/util';
-import { Keyboard } from '../../util/keyboard';
+import { Keyboard } from '../../platform/keyboard';
+import { NavController } from '../../navigation/nav-controller';
 import { NavControllerBase } from '../../navigation/nav-controller-base';
 import { NavOptions } from '../../navigation/nav-util';
+import { Platform } from '../../platform/platform';
 import { TransitionController } from '../../transitions/transition-controller';
 import { ViewController } from '../../navigation/view-controller';
 
@@ -15,10 +18,10 @@ import { ViewController } from '../../navigation/view-controller';
  * @name Nav
  * @description
  *
- * `ion-nav` is the declarative component for a [NavController](../NavController/).
+ * `ion-nav` is the declarative component for a [NavController](../../../navigation/NavController/).
  *
  * For more information on using nav controllers like Nav or [Tab](../../Tabs/Tab/),
- * take a look at the [NavController API Docs](../NavController/).
+ * take a look at the [NavController API Docs](../../../navigation/NavController/).
  *
  *
  * @usage
@@ -56,9 +59,10 @@ export class Nav extends NavControllerBase implements AfterViewInit {
 
   constructor(
     @Optional() viewCtrl: ViewController,
-    @Optional() parent: NavControllerBase,
+    @Optional() parent: NavController,
     app: App,
     config: Config,
+    plt: Platform,
     keyboard: Keyboard,
     elementRef: ElementRef,
     zone: NgZone,
@@ -66,9 +70,10 @@ export class Nav extends NavControllerBase implements AfterViewInit {
     cfr: ComponentFactoryResolver,
     gestureCtrl: GestureController,
     transCtrl: TransitionController,
-    @Optional() linker: DeepLinker
+    @Optional() linker: DeepLinker,
+    domCtrl: DomController,
   ) {
-    super(parent, app, config, keyboard, elementRef, zone, renderer, cfr, gestureCtrl, transCtrl, linker);
+    super(parent, app, config, plt, keyboard, elementRef, zone, renderer, cfr, gestureCtrl, transCtrl, linker, domCtrl);
 
     if (viewCtrl) {
       // an ion-nav can also act as an ion-page within a parent ion-nav
@@ -141,7 +146,7 @@ export class Nav extends NavControllerBase implements AfterViewInit {
   @Input() rootParams: any;
 
   /**
-   * @input {boolean} Whether it's possible to swipe-to-go-back on this nav controller or not.
+   * @input {boolean} If true, swipe to go back is enabled.
    */
   @Input()
   get swipeBackEnabled(): boolean {
@@ -149,6 +154,7 @@ export class Nav extends NavControllerBase implements AfterViewInit {
   }
   set swipeBackEnabled(val: boolean) {
     this._sbEnabled = isTrueProperty(val);
+    this._swipeBackCheck();
   }
 
   /**

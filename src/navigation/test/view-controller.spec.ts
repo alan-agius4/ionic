@@ -7,7 +7,7 @@ describe('ViewController', () => {
     it('should emit LifeCycleEvent when called with component data', (done) => {
       // arrange
       let viewController = mockView();
-      subscription = viewController.willEnter.subscribe((event) => {
+      subscription = viewController.willEnter.subscribe((event: any) => {
         // assert
         expect(event).toEqual(null);
         done();
@@ -24,7 +24,7 @@ describe('ViewController', () => {
     it('should emit LifeCycleEvent when called with component data', (done) => {
       // arrange
       let viewController = mockView();
-      subscription = viewController.didEnter.subscribe((event) => {
+      subscription = viewController.didEnter.subscribe((event: any) => {
         // assert
         expect(event).toEqual(null);
         done();
@@ -41,7 +41,7 @@ describe('ViewController', () => {
     it('should emit LifeCycleEvent when called with component data', (done) => {
       // arrange
       let viewController = mockView();
-      subscription = viewController.willLeave.subscribe((event) => {
+      subscription = viewController.willLeave.subscribe((event: any) => {
         // assert
         expect(event).toEqual(null);
         done();
@@ -50,7 +50,7 @@ describe('ViewController', () => {
       });
 
       // act
-      viewController._willLeave();
+      viewController._willLeave(false);
     }, 10000);
   });
 
@@ -58,7 +58,7 @@ describe('ViewController', () => {
     it('should emit LifeCycleEvent when called with component data', (done) => {
       // arrange
       let viewController = mockView();
-      subscription = viewController.didLeave.subscribe((event) => {
+      subscription = viewController.didLeave.subscribe((event: any) => {
         // assert
         expect(event).toEqual(null);
         done();
@@ -75,7 +75,7 @@ describe('ViewController', () => {
     it('should emit LifeCycleEvent when called with component data', (done) => {
       // arrange
       let viewController = mockView();
-      subscription = viewController.willUnload.subscribe((event) => {
+      subscription = viewController.willUnload.subscribe((event: any) => {
         expect(event).toEqual(null);
         done();
       }, (err: any) => {
@@ -92,6 +92,7 @@ describe('ViewController', () => {
       // arrange
       let viewController = mockView();
       let navControllerBase = mockNavController();
+      navControllerBase._isPortal = true;
       mockViews(navControllerBase, [viewController]);
 
       viewController.onWillDismiss((data: any) => {
@@ -108,6 +109,7 @@ describe('ViewController', () => {
       // arrange
       let viewController = mockView();
       let navControllerBase = mockNavController();
+      navControllerBase._isPortal = true;
       mockViews(navControllerBase, [viewController]);
 
       viewController.onDidDismiss((data: any) => {
@@ -117,7 +119,26 @@ describe('ViewController', () => {
 
       viewController.dismiss('didDismiss data');
     }, 10000);
+
+    it('should not crash when calling dismiss() twice', (done) => {
+      // arrange
+      let viewController = mockView();
+      let navControllerBase = mockNavController();
+      navControllerBase._isPortal = true;
+      mockViews(navControllerBase, [viewController]);
+
+      viewController.onDidDismiss((data: any) => {
+        expect(data).toEqual('didDismiss data');
+        setTimeout(() => {
+          viewController.dismiss(); // it should not crash
+          done();
+        }, 100);
+      });
+
+      viewController.dismiss('didDismiss data');
+    }, 10000);
   });
+
 
   afterEach(() => {
     if (subscription) {
